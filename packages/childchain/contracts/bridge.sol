@@ -44,10 +44,14 @@ contract Bridge {
       bytes32 s) public {
       // check the unlock
       require(!unlockSigs[txHash][from].complete, "burn already completed");
+      require(amount > 0, "amount needs to be larger than zero");
+      require(address(0) != from, "can not receive from zero address");
+      require(bytes32(0) != txHash, "txHash not equal zero");
       bytes32 sigHash = keccak256(abi.encode(from, amount, txHash));
       address signer;
       (, signer) = safer_ecrecover(sigHash, v, r, s);
       uint256 signerCount = 0;
+      require(!unlockSigs[txHash][signer].complete, "signature already collected");
       for (uint256 i = 0; i < validators.length; i++) {
         if (validators[i] == signer) {
           // payload
@@ -63,10 +67,11 @@ contract Bridge {
           signerCount++;
         }
       }
-      if (signerCount >= validators.length * 2 / 3) {
+      if (signerCount > validators.length * 2 / 3) {
         // how to mint?! :shrug:
         // set the lock
-        Sig[] memory signatures  = new Sig[](validators.length * 2 / 3);
+        Sig[] memory signatures  = new Sig[](validators.length * 2 / 3 + 1);
+        // https://medium.com/codechain/why-n-3f-1-in-the-byzantine-fault-tolerance-system-c3ca6bab8fe9
         uint256 fillUntil = 0;
         for (uint256 i = 0; i < validators.length; i++){
           if (unlockSigs[txHash][validators[i]].v > 0) {
@@ -74,8 +79,8 @@ contract Bridge {
             fillUntil++;
           }
         }
-        emit BurnQuorum(txHash, from, amount, signatures);
         unlockSigs[txHash][from].complete = true;
+        emit BurnQuorum(txHash, from, amount, signatures);
       }
       require(signerCount > 0, "Signer needs to be part of validator set");
     }
@@ -115,11 +120,13 @@ contract Bridge {
     bytes32 r,
     bytes32 s) public {
     // check the lock
-    require(!lockSigs[txHash][to], "mint already executed");
+    require(!lockSigs[txHash][address(0)], "mint already executed");
+    require(amount > 0, "amount needs to be larger than zero");
     bytes32 sigHash = keccak256(abi.encode(to, amount, txHash));
     address signer;
     (, signer) = safer_ecrecover(sigHash, v, r, s);
     uint256 signerCount = 0;
+    require(!lockSigs[txHash][signer], "signature already collected");
     for (v = 0; v < validators.length; v++) {
       if (validators[v] == signer) {
         // payload
@@ -131,10 +138,10 @@ contract Bridge {
       }
     }
     if (signerCount > validators.length * 2 / 3) {
+      // set the lock
+      lockSigs[txHash][address(0)] = true;
       // how to mint?! :shrug:
       to.transfer(amount);
-      // set the lock
-      lockSigs[txHash][to] = true;
     }
     require(signerCount > 0, "Signer needs to be part of validator set");
   }
