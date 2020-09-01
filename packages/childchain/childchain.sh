@@ -24,7 +24,7 @@ emintcli keys add $KEY
 emintd init $MONIKER --chain-id $CHAINID
 
 # Allocate genesis accounts (cosmos formatted addresses)
-emintd add-genesis-account $(emintcli keys show $KEY -a) 10000000000000000000photon,1000000000000000000stake
+emintd add-genesis-account $(emintcli keys show $KEY -a) 10000000000000000000000photon,1000000000000000000stake
 
 # Sign genesis transaction
 emintd gentx --name $KEY --keyring-backend test

@@ -43,7 +43,7 @@ contract Bridge {
       bytes32 r,
       bytes32 s) public {
       // check the unlock
-      require(!unlockSigs[txHash][from].complete, "burn already completed");
+      require(!unlockSigs[txHash][address(0)].complete, "burn already completed");
       require(amount > 0, "amount needs to be larger than zero");
       require(address(0) != from, "can not receive from zero address");
       require(bytes32(0) != txHash, "txHash not equal zero");
@@ -79,7 +79,7 @@ contract Bridge {
             fillUntil++;
           }
         }
-        unlockSigs[txHash][from].complete = true;
+        unlockSigs[txHash][address(0)].complete = true;
         emit BurnQuorum(txHash, from, amount, signatures);
       }
       require(signerCount > 0, "Signer needs to be part of validator set");
