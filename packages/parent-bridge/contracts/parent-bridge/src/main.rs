@@ -70,11 +70,6 @@ impl From<SysError> for Error {
             ItemMissing => Self::ItemMissing,
             LengthNotEnough(_) => Self::LengthNotEnough,
             Encoding => Self::Encoding,
-            // StateTransitionDoesNotExist => Self::StateTransitionDoesNotExist,
-            // WrongValidatorListLength => Self::WrongValidatorListLength,
-            // WrongLockScript => Self::WrongLockScript,
-            // WrongTypeScript => Self::WrongTypeScript,
-            // DataLengthNotZero => Self::DataLengthNotZero,
             Unknown(err_code) => panic!("unexpected sys error {}", err_code),
         }
     }
