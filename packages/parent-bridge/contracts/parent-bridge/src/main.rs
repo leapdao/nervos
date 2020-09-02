@@ -9,16 +9,17 @@ use core::result::Result;
 
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
-use alloc::{vec::Vec};
+use alloc::vec::Vec;
 
 use ckb_std::{
     ckb_constants::Source,
-    ckb_types::{bytes::Bytes},
+    ckb_types::bytes::Bytes,
     debug, default_alloc, entry,
     error::SysError,
     high_level::{
-        load_cell_data, load_cell_lock, load_cell_type_hash, load_script, load_script_hash,
-            },
+        load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
+        load_script, load_script_hash,
+    },
     syscalls::load_witness,
 };
 
@@ -59,6 +60,7 @@ enum Error {
     WrongLockScript = 7,
     WrongTypeScript = 8,
     DataLengthNotZero = 9,
+    WrongStateId = 10,
     // Add customized errors here...
 }
 
@@ -78,13 +80,13 @@ impl From<SysError> for Error {
 type Address = [u8; 20];
 
 enum StateTransition {
-    DeployBridge { validators: Vec<Address> },
+    DeployBridge { validators: Vec<Address>, id: Bytes },
 }
 
 impl StateTransition {
     fn verify(&self) -> Result<(), Error> {
         match self {
-            Self::DeployBridge { validators: _ } => {
+            Self::DeployBridge { validators, id } => {
                 // lock script on output0 should be anyone can spend
                 let lock_code_hash = load_cell_lock(0, Source::Output)?.code_hash().raw_data();
                 if *lock_code_hash != ANYONE_CAN_PAY_CODE_HASH[..] {
@@ -103,7 +105,16 @@ impl StateTransition {
                 if !data.len() == 0 {
                     return Err(Error::DataLengthNotZero);
                 }
+                // verify typescript args contains id and validators
+                let type_script_0 = load_cell_type(0, Source::Output)?.unwrap();
+                let type_script_args = type_script_0.args().raw_data();
+                let validators_flat = Bytes::from(validators[..].concat());
+                let id_and_validators = Bytes::from([&*id, &*validators_flat].concat());
 
+                if id_and_validators != type_script_args {
+                    return Err(Error::WrongStateId);
+                }
+                
                 Ok(())
             }
         }
@@ -119,14 +130,24 @@ fn slice_to_array_20(slice: &[u8]) -> [u8; 20] {
 }
 
 fn parse_validator_list_from_args(args: &[u8]) -> Result<Vec<Address>, Error> {
-    if args.len() % 20 != 0 {
+    let val_args = &args[36..];
+    if val_args.len() % 20 != 0 {
         return Err(Error::WrongValidatorListLength);
     }
     let mut validators = Vec::new();
-    for i in 0..(args.len() / 20) {
-        validators.push(slice_to_array_20(&args[i..i + 20]));
+    for i in 0..(val_args.len() / 20) {
+        let ix = i * 20;
+        validators.push(slice_to_array_20(&val_args[ix..ix + 20]));
     }
     Ok(validators)
+}
+
+// check there is always only one
+fn get_state_id() -> Result<Bytes, Error> {
+    let outpoint = load_input_out_point(0, Source::Input)?;
+    let tx_hash: &[u8] = &*outpoint.tx_hash().raw_data();
+    let index: &[u8] = &*outpoint.index().raw_data();
+    Ok(Bytes::from([tx_hash, index].concat()))
 }
 
 fn get_state_transition() -> Result<StateTransition, Error> {
@@ -136,9 +157,11 @@ fn get_state_transition() -> Result<StateTransition, Error> {
         0 => {
             let script_args: Bytes = load_script()?.args().raw_data();
             let validators = parse_validator_list_from_args(&*script_args)?;
+            let state_id: Bytes = get_state_id()?;
             debug!("validators: {:?}", validators);
             Ok(StateTransition::DeployBridge {
                 validators: validators,
+                id: state_id,
             })
         }
         _ => Err(Error::StateTransitionDoesNotExist),
