@@ -1,0 +1,7 @@
+node_modules/
+lerna-debug.log*
+npm-debug.log*
+build
+# Local Netlify folder
+.netlify
+netlify.toml

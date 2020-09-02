@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "ethereumjs-abi": "^0.6.8",
+    "ethereumjs-util": "^7.0.3",
+    "global": "^4.4.0",
+    "truffle": "^5.1.42"
+  },
+  "scripts": {
+    "test": "truffle test",
+    "build": "truffle build",
+  }
+}
