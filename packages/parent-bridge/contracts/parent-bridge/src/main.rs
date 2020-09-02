@@ -18,7 +18,7 @@ use ckb_std::{
     error::SysError,
     high_level::{
         load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
-        load_script, load_script_hash,
+        load_script, load_script_hash, QueryIter,
     },
     syscalls::load_witness,
 };
@@ -61,6 +61,7 @@ enum Error {
     WrongTypeScript = 8,
     DataLengthNotZero = 9,
     WrongStateId = 10,
+    TooManyTypeOutputs = 11,
     // Add customized errors here...
 }
 
@@ -114,7 +115,9 @@ impl StateTransition {
                 if id_and_validators != type_script_args {
                     return Err(Error::WrongStateId);
                 }
-                
+
+                only_one_output_has_state_id()?;
+
                 Ok(())
             }
         }
@@ -148,6 +151,17 @@ fn get_state_id() -> Result<Bytes, Error> {
     let tx_hash: &[u8] = &*outpoint.tx_hash().raw_data();
     let index: &[u8] = &*outpoint.index().raw_data();
     Ok(Bytes::from([tx_hash, index].concat()))
+}
+
+fn only_one_output_has_state_id() -> Result<(), Error> {
+    let my_hash = load_script_hash()?;
+    let num = QueryIter::new(load_cell_type_hash, Source::Output)
+        .filter(|h| h.map_or(false, |hash| hash == my_hash) )
+        .count();
+    if num > 1 {
+        return Err(Error::TooManyTypeOutputs);
+    };
+    Ok(())
 }
 
 fn get_state_transition() -> Result<StateTransition, Error> {
