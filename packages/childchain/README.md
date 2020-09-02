@@ -1,6 +1,6 @@
 # Running the node
 
-To start the node make sure to have ethermint installed and have your GO Path exposed: 
+To start the node make sure to have ethermint (v0.1.0 or higher) installed and have your GO Path exposed: 
 
 ```
 git clone https://github.com/ChainSafe/ethermint

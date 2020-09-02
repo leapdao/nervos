@@ -27,7 +27,7 @@ ethermintd version
 ethermintd init $MONIKER --chain-id $CHAINID
 
 # Allocate genesis accounts (cosmos formatted addresses)
-ethermintd add-genesis-account $(ethermintcli keys show $KEY -a) 10000000000000000000000aphoton,1000000000000000000stake
+ethermintd add-genesis-account $(ethermintcli keys show $KEY -a) 100000000000000000000000aphoton,1000000000000000000stake
 
 # Sign genesis transaction
 ethermintd gentx --name $KEY --keyring-backend test
@@ -54,3 +54,6 @@ echo -e "ethermintcli rest-server --laddr \"tcp://localhost:8545\" --unlock-key 
 ethermintd start --pruning=nothing --rpc.unsafe --log_level "main:info,state:info,mempool:info" --trace
 
 # TODO: deploy bridge contracts
+# ideally in a deterministic way, so that we can put all supply on the address already
+# open question: how do validators pay for relay transactions, if there are not tokens in circulation
+# maybe check that validators have made a deposit into parent bridge, otherwise don't launch the childchain.
