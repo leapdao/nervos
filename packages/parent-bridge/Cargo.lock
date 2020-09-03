@@ -2930,6 +2930,7 @@ dependencies = [
 name = "tests"
 version = "0.1.0"
 dependencies = [
+ "ckb-system-scripts",
  "ckb-testtool",
  "ckb-tool",
  "hex",

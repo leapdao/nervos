@@ -1,0 +1,3 @@
+[submodule "packages/parent-bridge/ckb-miscellaneous-scripts"]
+	path = packages/parent-bridge/ckb-miscellaneous-scripts
+	url = https://github.com/nervosnetwork/ckb-miscellaneous-scripts.git
