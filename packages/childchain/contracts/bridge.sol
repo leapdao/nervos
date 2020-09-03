@@ -41,13 +41,19 @@ contract Bridge {
   mapping(bytes32 => mapping(address => bool)) lockSigs;
 
   struct Sig {
-    bool complete;
     uint8 v;
     bytes32 r;
     bytes32 s;
   }
 
-  mapping(bytes32 => mapping(address => Sig)) unlockSigs;
+  struct BurnStruct {
+    bool complete;
+    address receiver;
+    uint256 amount;
+    mapping(address => Sig) sigs;
+  }
+
+  mapping(bytes32 => BurnStruct) public unlockSigs;
 
   function safer_ecrecover(bytes32 hash, uint8 v, bytes32 r, bytes32 s) internal returns (bool, address) {
     // We do our own memory management here. Solidity uses memory offset
@@ -81,7 +87,7 @@ contract Bridge {
   }
 
   function isUnlockComplete(bytes32 txHash) internal view returns (bool) {
-    return unlockSigs[txHash][address(0)].complete;
+    return unlockSigs[txHash].complete;
   }
 
   /**
@@ -169,37 +175,42 @@ contract Bridge {
     address signer;
     (, signer) = safer_ecrecover(sigHash, v, r, s);
     uint256 signerCount = 0;
-    require(!unlockSigs[txHash][signer].complete, "signature already collected");
+    require(!unlockSigs[txHash].complete, "signature already collected");
     for (uint256 i = 0; i < validators.length; i++) {
+      // set new signature
       if (validators[i] == signer) {
         // payload
-        unlockSigs[txHash][signer] = Sig({
-          complete: true,
+        unlockSigs[txHash] = BurnStruct({
+          complete: false,
+          receiver: from,
+          amount: amount
+        });
+        unlockSigs[txHash].sigs[signer] = Sig({
           v: v,
           r: r,
           s: s
         });
         emit UnlockSig(txHash, signer, from, amount);
       }
-      if (unlockSigs[txHash][validators[i]].v > 0) {
+      // count existing signatures
+      if (unlockSigs[txHash].sigs[validators[i]].v > 0) {
         signerCount++;
       }
     }
     if (signerCount > validators.length * 2 / 3) {
-      // how to mint?! :shrug:
-      // set the lock
+      // create a structure to hold all sigs and emit in event
       Sig[] memory signatures  = new Sig[](validators.length * 2 / 3 + 1);
       // https://medium.com/codechain/why-n-3f-1-in-the-byzantine-fault-tolerance-system-c3ca6bab8fe9
       uint256 fillUntil = 0;
       for (uint256 i = 0; i < validators.length; i++){
-        if (unlockSigs[txHash][validators[i]].v > 0) {
-          signatures[fillUntil] = unlockSigs[txHash][validators[i]];
+        if (unlockSigs[txHash].sigs[validators[i]].v > 0) {
+          signatures[fillUntil] = unlockSigs[txHash].sigs[validators[i]];
           fillUntil++;
         }
       }
-      unlockSigs[txHash][address(0)].complete = true;
+      unlockSigs[txHash].complete = true;
       emit BurnQuorum(txHash, from, amount, signatures);
     }
-    require(unlockSigs[txHash][signer].complete, "Signer needs to be part of validator set");
+    //require(unlockSigs[txHash].complete, "Signer needs to be part of validator set");
   }
 }

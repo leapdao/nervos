@@ -7,6 +7,6 @@
   },
   "scripts": {
     "test": "truffle test",
-    "build": "truffle build",
+    "build": "truffle build"
   }
 }

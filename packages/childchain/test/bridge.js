@@ -73,7 +73,7 @@ contract("Bridge", (accounts) => {
     assert(tx.logs.length == 2);
   });
 
-  it("should allow fours validators and collect unlock signatures", async () => {
+  it("should allow four validators and collect unlock signatures", async () => {
     bridge = await Bridge.new(ValidatorSet);
     let tx = await web3.eth.sendTransaction({
       from: accounts[0],
@@ -81,6 +81,7 @@ contract("Bridge", (accounts) => {
       value: "2000000000000000000",
     });
     let txHash = tx.transactionHash;
+    // TODO: follow spec: https://github.com/leapdao/nervos/blob/feature/childSpec/docs/childchain.md#unlock
     let payload = abi.rawEncode(
       ["address", "uint256", "bytes32"],
       [accounts[0], "2000000000000000000", txHash]
@@ -102,6 +103,7 @@ contract("Bridge", (accounts) => {
       );
       sigs = [...sigs, ...tx.logs];
     }
+    // 4 events, 3 for UnlockSig, and 1 BurnQuorum
     assert(sigs.length == 4, "all validators signed");
   });
 
