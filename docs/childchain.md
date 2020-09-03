@@ -139,10 +139,10 @@ The contained data can be relayed to the parent bridge to unlock funds to the ad
 
 ## Setup Steps
 
-Ideally all steps will be sumarized in single script. 
+Ideally all steps will be sumarized in single script. The address of the parent-bridge contract should be taken as an input. The validators should have locked small amount of CKB in the bridge already, so that child-chain balances can be minted for gas payments.
 
-### 1. generating keyfiles
-### 2. aggregating genesis file
-### 3. launching network
-### 4. deploying contracts
-### 5. minting tokens
+1. generating keyfiles
+2. aggregating genesis file
+3. launching network
+4. deploying contracts
+5. minting tokens
