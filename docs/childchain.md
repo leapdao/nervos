@@ -65,11 +65,8 @@ The byte-array encoding of the payload passed to keccak256 is:
 ## Contract Interface
 
 The contract has 2 major functions:
-- collect lock receipts and mint funds
-- allow to burn funds and collect unlock receipts
-
-The collection of unlock sigs is mostly a convenience functions for validators, to avoid off-chain coordination. 
-
+- collect lock receipts and mint funds: The lock collection follows a transaction on the parent chain that locks tokens into the parent bridge. 
+- allow to burn funds and collect unlock receipts: The collection of unlock sigs is mostly a convenience functions for validators, to avoid off-chain coordination.
 
 ### Collect Lock Receipts
 
@@ -96,6 +93,8 @@ Once the quorum is reached, `amount` tokens are released to receiver (`to`). A `
 ```
   event Mint(address indexed receiver, uint256 value);
 ```
+
+A lock is set in the contract based on the `txHash` to prevent doubleminting.
 
 ### Collect Burn Receipts
 
@@ -134,7 +133,7 @@ Once the quorum has been reached an aggregate event is emitted with all signatur
   event BurnQuorum(bytes32 indexed txHash, address indexed from, uint256 amount, Sig[] signatures);
 ```
 
-The contained data can be relayed to the parent bridge to unlock funds to the address of the burner.
+The contained data can be relayed to the parent bridge to unlock funds to the address of the burner. Further signatures can not be collected under the same `txHash`. The `txHash` should be used as a lock in the parent-chain bridge to prevent double-payments.
 
 
 ## Setup Steps
