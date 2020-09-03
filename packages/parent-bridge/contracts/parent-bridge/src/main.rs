@@ -48,6 +48,8 @@ const ANYONE_CAN_PAY_CODE_HASH: [u8; 32] = [
     108, 13, 47, 236, 224, 10, 131, 31, 54, 96, 215,
 ];
 
+const ADDRESS_LEN: usize = 20;
+
 /// Error
 #[repr(i8)]
 enum Error {
@@ -56,12 +58,13 @@ enum Error {
     LengthNotEnough = 3,
     Encoding = 4,
     StateTransitionDoesNotExist = 5,
-    WrongValidatorListLength = 6,
+    InvalidArgsEncoding = 6,
     WrongLockScript = 7,
     WrongTypeScript = 8,
     DataLengthNotZero = 9,
     WrongStateId = 10,
     TooManyTypeOutputs = 11,
+    EmptyValidatorList = 12,
     // Add customized errors here...
 }
 
@@ -78,7 +81,7 @@ impl From<SysError> for Error {
     }
 }
 
-type Address = [u8; 20];
+type Address = [u8; ADDRESS_LEN];
 
 enum StateTransition {
     DeployBridge { validators: Vec<Address>, id: Bytes },
@@ -133,19 +136,21 @@ fn slice_to_array_20(slice: &[u8]) -> [u8; 20] {
 }
 
 fn parse_validator_list_from_args(args: &[u8]) -> Result<Vec<Address>, Error> {
+    // args consist of outpount + validator list
+    // output has length of 36 bytes
     let val_args = &args[36..];
-    if val_args.len() % 20 != 0 {
-        return Err(Error::WrongValidatorListLength);
+    // validator address 
+    if val_args.len() % ADDRESS_LEN != 0 {
+        return Err(Error::InvalidArgsEncoding);
     }
     let mut validators = Vec::new();
-    for i in 0..(val_args.len() / 20) {
-        let ix = i * 20;
-        validators.push(slice_to_array_20(&val_args[ix..ix + 20]));
+    for i in 0..(val_args.len() / ADDRESS_LEN) {
+        let ix = i * ADDRESS_LEN;
+        validators.push(slice_to_array_20(&val_args[ix..ix + ADDRESS_LEN]));
     }
     Ok(validators)
 }
 
-// check there is always only one
 fn get_state_id() -> Result<Bytes, Error> {
     let outpoint = load_input_out_point(0, Source::Input)?;
     let tx_hash: &[u8] = &*outpoint.tx_hash().raw_data();
@@ -153,10 +158,11 @@ fn get_state_id() -> Result<Bytes, Error> {
     Ok(Bytes::from([tx_hash, index].concat()))
 }
 
+// check there is always only one
 fn only_one_output_has_state_id() -> Result<(), Error> {
     let my_hash = load_script_hash()?;
     let num = QueryIter::new(load_cell_type_hash, Source::Output)
-        .filter(|h| h.map_or(false, |hash| hash == my_hash) )
+        .filter(|option| option.map_or(false, |hash| hash == my_hash) )
         .count();
     if num > 1 {
         return Err(Error::TooManyTypeOutputs);
@@ -165,12 +171,15 @@ fn only_one_output_has_state_id() -> Result<(), Error> {
 }
 
 fn get_state_transition() -> Result<StateTransition, Error> {
-    let mut wit_buf: [u8; 1] = [0; 1];
+    let mut wit_buf: [u8; 1] = [0];
     load_witness(&mut wit_buf, 0, 0, Source::Input)?;
     match wit_buf[0] {
         0 => {
             let script_args: Bytes = load_script()?.args().raw_data();
             let validators = parse_validator_list_from_args(&*script_args)?;
+            if validators.len() == 0 {
+                return Err(Error::EmptyValidatorList);
+            };
             let state_id: Bytes = get_state_id()?;
             debug!("validators: {:?}", validators);
             Ok(StateTransition::DeployBridge {
