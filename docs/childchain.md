@@ -62,11 +62,87 @@ The payload yields the hash: `0x53bdb2747fbb47101844b4d1f5153fda18ecb4c187750421
 The byte-array encoding of the payload passed to keccak256 is:
 `0x000000000000000000000000000000000000000000000000000000000000000033441122334411223344112233441122334411223344112233441122334411220000000000000000000000006677889900112233445566778899001122334455000000000000000000000000000000000000000000000000AB44DF0BA487D000`
 
+## Contract Interface
+
+The contract has 2 major functions:
+- collect lock receipts and mint funds
+- allow to burn funds and collect unlock receipts
+
+The collection of unlock sigs is mostly a convenience functions for validators, to avoid off-chain coordination. 
+
+
+### Collect Lock Receipts
+
+Any validator can call the `collectLock()` function. It's interface is as follows:
+
+```
+  function collectLock(
+    address payable to,
+    uint256 amount,
+    bytes32 txHash,
+    uint8 v,
+    bytes32 r,
+    bytes32 s) public {	
+  }
+```
+
+The function aggregates signature of lock receipts in storage of contract. The function emits a `LockSig event each time a new valid signature is collected. The event is specified as:
+```
+  event LockSig(bytes32 indexed txHash, address indexed validator, address to, uint256 amount);
+```
+
+Once the quorum is reached, `amount` tokens are released to receiver (`to`). A `Mint` event is emitted with the following structure:
+
+```
+  event Mint(address indexed receiver, uint256 value);
+```
+
+### Collect Burn Receipts
+
+The process begins with the call of the burn function, which moves `msg.value` tokens from `msg.sender` into non-circulating supply, as defined here:
+
+```
+  function () payable external {
+  }
+```
+
+The function emits a Burn event as follows:
+```
+  event Burn(address indexed sender, uint256 value);
+```
+
+Once funds have been burned the contract has a helper function to coordinate signature aggregation. The function is defined as:
+```
+  function collectUnlock(
+    address from,
+    uint256 amount,
+    bytes32 txHash,
+    uint8 v,
+    bytes32 r,
+    bytes32 s) public {
+  }
+```
+
+An `UnlockSig` is emitted every time with the following data:
+```
+  event UnlockSig(bytes32 indexed txHash, address indexed validator, address from, uint256 amount);
+```
+
+Once the quorum has been reached an aggregate event is emitted with all signatures included:
+
+```
+  event BurnQuorum(bytes32 indexed txHash, address indexed from, uint256 amount, Sig[] signatures);
+```
+
+The contained data can be relayed to the parent bridge to unlock funds to the address of the burner.
+
 
 ## Setup Steps
 
-1. generating keyfiles
-2. aggregating genesis file
-3. launching network
-4. deploying contracts
-5. minting tokens
+Ideally all steps will be sumarized in single script. 
+
+### 1. generating keyfiles
+### 2. aggregating genesis file
+### 3. launching network
+### 4. deploying contracts
+### 5. minting tokens
