@@ -6,7 +6,7 @@ use hex::FromHex;
 const MAX_CYCLES: u64 = 10_000_000;
 
 #[test]
-fn test_basic() {
+fn test_success() {
     let mut context = Context::default();
 
     let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
@@ -69,4 +69,9 @@ fn test_basic() {
         .verify_tx(&tx, MAX_CYCLES)
         .expect("pass verification");
     println!("consume cycles: {}", cycles);
+}
+
+#[test]
+fn test_state_transition_does_not_exists() {
+
 }

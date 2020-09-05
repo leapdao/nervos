@@ -55,6 +55,7 @@ enum Error {
     ItemMissing = 2,
     LengthNotEnough = 3,
     Encoding = 4,
+    // Costum errors below
     StateTransitionDoesNotExist = 5,
     WrongValidatorListLength = 6,
     WrongLockScript = 7,
