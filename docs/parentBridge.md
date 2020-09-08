@@ -1,3 +1,3 @@
 # Parent Bridge Spec
 
-[![txns](parentBridgeTxns.png)](transactions.xml)
+[![txns](parentBridgeTxns.png)](parentBridgeTxns.drawio)
