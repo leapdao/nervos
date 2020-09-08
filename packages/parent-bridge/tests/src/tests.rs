@@ -51,7 +51,7 @@ fn test_basic() {
 
     let outputs_data = vec![Bytes::new(); 1];
 
-    let witnesses = vec![Bytes::from(vec![0 as u8; 1]); 1];
+    let witnesses = vec![Bytes::new()];
 
     // build transaction
     let tx = TransactionBuilder::default()
