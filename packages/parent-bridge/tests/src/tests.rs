@@ -292,3 +292,7 @@ fn test_deposit_with_wrong_sig() {
     assert_error_eq!(err, ScriptError::ValidationFailure(Secp256k1));
 }
 
+#[test]
+fn test_deposit_stateid() {
+    
+}
