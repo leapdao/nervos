@@ -4,8 +4,8 @@
 #![feature(alloc_error_handler)]
 #![feature(panic_info_message)]
 
-mod secp256k1;
 mod code_hashes;
+mod secp256k1;
 
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
@@ -17,11 +17,13 @@ use core::result::Result;
 // Import CKB syscalls and structures
 // https://nervosnetwork.github.io/ckb-std/riscv64imac-unknown-none-elf/doc/ckb_std/index.html
 use ckb_std::{
+    ckb_constants::Source,
     ckb_types::{bytes::Bytes, prelude::*},
-    debug, default_alloc, entry,
-    error::SysError,
-    high_level::load_script,
+    debug, default_alloc,
     dynamic_loading::CKBDLContext,
+    entry,
+    error::SysError,
+    high_level::{ load_script, QueryIter, load_cell_type_hash },
 };
 
 use crate::secp256k1::Secp256k1Lib;
@@ -47,6 +49,7 @@ enum Error {
     Encoding,
     // Add customized errors here...
     Secp256k1,
+    NoCellWithCorrectTypeHash,
 }
 
 impl From<SysError> for Error {
@@ -62,7 +65,7 @@ impl From<SysError> for Error {
     }
 }
 
-fn main() -> Result<(), Error> {
+fn verify_sig() -> Result<(), Error> {
     let script = load_script()?;
     let args: Bytes = script.args().unpack();
 
@@ -78,10 +81,31 @@ fn main() -> Result<(), Error> {
 
     // validate secp256k1 pubkey
     let lib = Secp256k1Lib::load(&mut context);
-    lib.validate_blake2b_sighash_all(&pubkey_hash).map_err(|err_code| {
-        debug!("secp256k1 error {}", err_code);
-        Error::Secp256k1
-    })?;
+
+    lib.validate_blake2b_sighash_all(&pubkey_hash)
+        .map_err(|err_code| {
+            debug!("secp256k1 error {}", err_code);
+            Error::Secp256k1
+        })?;
 
     Ok(())
+}
+
+fn verify_stateid(error: Error) -> Result<(), Error> {
+    let script = load_script()?;
+    let args: Bytes = script.args().unpack();
+
+    if args.len() != 32 {
+        return Err(Error::Encoding);
+    }
+
+    let stateid_included = QueryIter::new(load_cell_type_hash, Source::Input)
+        .filter(|h| h.map_or(false, |hash| hash[..] == *args) )
+        .count() == 1;
+
+    if stateid_included { Ok(()) } else { Err(Error::NoCellWithCorrectTypeHash)  }
+}
+
+fn main() -> Result<(), Error> {
+    verify_sig().or_else(verify_stateid)
 }
