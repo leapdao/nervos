@@ -109,7 +109,7 @@ contract Bridge {
     // check the lock
     require(!isMintComplete(txHash), "mint already executed");
     require(amount > 0, "amount needs to be larger than zero");
-    bytes32 sigHash = keccak256(abi.encode(to, amount, txHash));
+    bytes32 sigHash = keccak256(abi.encode(true, to, amount, txHash));
     address signer;
     (, signer) = safer_ecrecover(sigHash, v, r, s);
     uint256 signerCount = 0;
@@ -165,7 +165,7 @@ contract Bridge {
     require(amount > 0, "amount needs to be larger than zero");
     require(address(0) != from, "can not receive from zero address");
     require(bytes32(0) != txHash, "txHash not equal zero");
-    bytes32 sigHash = keccak256(abi.encode(from, amount, txHash));
+    bytes32 sigHash = keccak256(abi.encode(false, from, amount, txHash));
     address signer;
     (, signer) = safer_ecrecover(sigHash, v, r, s);
     uint256 signerCount = 0;

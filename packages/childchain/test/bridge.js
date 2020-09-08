@@ -1,37 +1,34 @@
 const Bridge = artifacts.require("Bridge");
-const ethUtil = require("ethereumjs-util");
-var abi = require("ethereumjs-abi");
+const { BN } = require("ethereumjs-util");
+const abi = require("ethereumjs-abi");
+const {lockReceipt, unlockReceipt} = require("./helpers/receipt");
+
+const ALICE = "0xf3beac30c498d9e26865f34fcaa57dbb935b0d74";
+const ALICE_PRIV = "0x278a5de700e29faae8e40e366ec5012b5ec63d36ec77e8a2417154cc1d25383f";
+const BOB = "0xe10f3d125e5f4c753a6456fc37123cf17c6900f2";
+const BOB_PRIV = "0x7bc8feb5e1ce2927480de19d8bc1dc6874678c016ae53a2eec6a6e9df717bfac";
+// secretSeed: 'erosion warm student north injury good evoke river despair critic wrestle unveil' }
+const CAROL = "0xc3ccb3902a164b83663947aff0284c6624f3fbf2";
+const CAROL_PRIV = "0x71d2b12dad610fc929e0596b6e887dfb711eec286b7b8b0bdd742c0421a9c425";
+// secretSeed: 'erode melody nature bounce sample deny spend give craft alcohol supply roof' }
+const DAVE = "0x82e8c6cf42c8d1ff9594b17a3f50e94a12cc860f";
+const DAVE_PRIV = "0x94890218f2b0d04296f30aeafd13655eba4c5bbf1770273276fee52cbe3f2cb4";
+
+const LOCK_TX_HASH = "0x1122334411223344112233441122334411223344112233441122334411223344";
+const ONE_ETH = new BN('1000000000000000000', 10);
+const TWO_ETH = new BN('2000000000000000000', 10);
 
 contract("Bridge", (accounts) => {
-  const alice = "0xf3beac30c498d9e26865f34fcaa57dbb935b0d74";
-  const txHash =
-    "0x1122334411223344112233441122334411223344112233441122334411223344";
-  const validatorPriv =
-    "0x278a5de700e29faae8e40e366ec5012b5ec63d36ec77e8a2417154cc1d25383f";
   let bridge;
-  const bob = "0xe10f3d125e5f4c753a6456fc37123cf17c6900f2";
-  const bobPriv =
-    "0x7bc8feb5e1ce2927480de19d8bc1dc6874678c016ae53a2eec6a6e9df717bfac";
-
-  // secretSeed: 'erosion warm student north injury good evoke river despair critic wrestle unveil' }
-  const P3_ADDR = "0xc3ccb3902a164b83663947aff0284c6624f3fbf2";
-  const P3_PRIV =
-    "0x71d2b12dad610fc929e0596b6e887dfb711eec286b7b8b0bdd742c0421a9c425";
-
-  // secretSeed: 'erode melody nature bounce sample deny spend give craft alcohol supply roof' }
-  const P4_ADDR = "0x82e8c6cf42c8d1ff9594b17a3f50e94a12cc860f";
-  const P4_PRIV =
-    "0x94890218f2b0d04296f30aeafd13655eba4c5bbf1770273276fee52cbe3f2cb4";
-
-  const ValidatorSet = [alice, bob, P3_ADDR, P4_ADDR];
-  const ValidatorPrivSet = [validatorPriv, bobPriv, P3_PRIV, P4_PRIV];
+  const ValidatorSet = [ALICE, BOB, CAROL, DAVE];
+  const ValidatorPrivSet = [ALICE_PRIV, BOB_PRIV, CAROL_PRIV, DAVE_PRIV];
 
   beforeEach(async () => {
-    bridge = await Bridge.new([alice]);
+    bridge = await Bridge.new([ALICE]);
     let txHash = await web3.eth.sendTransaction({
       from: accounts[0],
       to: bridge.address,
-      value: "2000000000000000000",
+      value: TWO_ETH,
     });
   });
 
@@ -47,62 +44,55 @@ contract("Bridge", (accounts) => {
   });
 */
   it("should allow and collect unlock signatures", async () => {
-    let txHash = await web3.eth.sendTransaction({
+    // burn some funds
+    let tx = await web3.eth.sendTransaction({
       from: accounts[0],
       to: bridge.address,
-      value: "2000000000000000000",
+      value: TWO_ETH,
     });
-    txHash = txHash.transactionHash;
-    let payload = abi.rawEncode(
-      ["address", "uint256", "bytes32"],
-      [accounts[0], "2000000000000000000", txHash]
-    );
-    const sigHash = ethUtil.keccak256(payload);
-    const sig = ethUtil.ecsign(
-      sigHash,
-      Buffer.from(validatorPriv.replace("0x", ""), "hex")
-    );
-    let tx = await bridge.collectUnlock(
+    const txHash = tx.transactionHash;
+    // create and sign unlock receipt
+    const sig = unlockReceipt(accounts[0], TWO_ETH, txHash).sign(ALICE_PRIV);
+    tx = await bridge.collectUnlock(
       accounts[0],
-      "2000000000000000000",
+      TWO_ETH,
       txHash,
       sig.v,
       sig.r,
       sig.s
     );
-    assert(tx.logs.length == 2);
+    // with 2 events we assume that quorum has been reached.
+    assert(tx.logs.length == 2, "validator quorum not reached");
   });
 
   it("should allow fours validators and collect unlock signatures", async () => {
+    // initialize bridge with 4 validators
     bridge = await Bridge.new(ValidatorSet);
+    // burn some funds
     let tx = await web3.eth.sendTransaction({
       from: accounts[0],
       to: bridge.address,
-      value: "2000000000000000000",
+      value: TWO_ETH,
     });
-    let txHash = tx.transactionHash;
-    let payload = abi.rawEncode(
-      ["address", "uint256", "bytes32"],
-      [accounts[0], "2000000000000000000", txHash]
-    );
-    const sigHash = ethUtil.keccak256(payload);
-    let sigs = [];
+    const txHash = tx.transactionHash;
+    // construct receipt
+    const receipt = unlockReceipt(accounts[0], TWO_ETH, txHash);
+    // sign and send
+    let logs = [];
     for (let i = 0; i < 3; i++) {
-      let sig = ethUtil.ecsign(
-        sigHash,
-        Buffer.from(ValidatorPrivSet[i].replace("0x", ""), "hex")
-      );
+      const sig = receipt.sign(ValidatorPrivSet[i]);
       tx = await bridge.collectUnlock(
         accounts[0],
-        "2000000000000000000",
+        TWO_ETH,
         txHash,
         sig.v,
         sig.r,
         sig.s
       );
-      sigs = [...sigs, ...tx.logs];
+      logs = [...logs, ...tx.logs];
     }
-    assert(sigs.length == 4, "all validators signed");
+    // 3 unlock sigs + 1 aggregate event with all sigs collected
+    assert(logs.length == 4, "quorum of validators signed");
   });
 
   it("should fail upon double collection of unlock", async () => {
@@ -110,23 +100,18 @@ contract("Bridge", (accounts) => {
     let tx = await web3.eth.sendTransaction({
       from: accounts[0],
       to: bridge.address,
-      value: "2000000000000000000",
+      value: TWO_ETH,
     });
-    let txHash = tx.transactionHash;
-    let payload = abi.rawEncode(
-      ["address", "uint256", "bytes32"],
-      [accounts[0], "2000000000000000000", txHash]
-    );
-    let sig;
-    const sigHash = ethUtil.keccak256(payload);
+    const txHash = tx.transactionHash;
+
+    // construct receipt
+    const receipt = unlockReceipt(accounts[0], TWO_ETH, txHash);
+
     for (let i = 0; i < 2; i++) {
-      sig = ethUtil.ecsign(
-        sigHash,
-        Buffer.from(ValidatorPrivSet[i].replace("0x", ""), "hex")
-      );
+      const sig = receipt.sign(ValidatorPrivSet[i]);
       await bridge.collectUnlock(
         accounts[0],
-        "2000000000000000000",
+        TWO_ETH,
         txHash,
         sig.v,
         sig.r,
@@ -136,7 +121,7 @@ contract("Bridge", (accounts) => {
     try {
       await bridge.collectUnlock(
         accounts[0],
-        "2000000000000000000",
+        TWO_ETH,
         txHash,
         sig.v,
         sig.r,
@@ -151,44 +136,28 @@ contract("Bridge", (accounts) => {
 
   it("should allow to collect 1 and transfer to Alice", async () => {
     // generate sig
-    let payload = abi.rawEncode(
-      ["address", "uint256", "bytes32"],
-      [alice, "1000000000000000000", txHash]
-    );
-    const sigHash = ethUtil.keccak256(payload);
-    const sig = ethUtil.ecsign(
-      sigHash,
-      Buffer.from(validatorPriv.replace("0x", ""), "hex")
-    );
-    const preAmount = await web3.eth.getBalance(alice);
+    const sig = lockReceipt(ALICE, ONE_ETH, LOCK_TX_HASH).sign(ALICE_PRIV);
+    const preAmount = await web3.eth.getBalance(ALICE);
     await bridge.collectLock(
-      alice,
-      "1000000000000000000",
-      txHash,
+      ALICE,
+      ONE_ETH,
+      LOCK_TX_HASH,
       sig.v,
       sig.r,
       sig.s
     );
-    const postAmount = await web3.eth.getBalance(alice);
+    const postAmount = await web3.eth.getBalance(ALICE);
     assert.equal(postAmount - 1000000000000000000, preAmount);
   });
 
   it("should not allow Bob as validator.", async () => {
     // generate sig
-    let payload = abi.rawEncode(
-      ["address", "uint256", "bytes32"],
-      [bob, "1000000000000000000", txHash]
-    );
-    const sigHash = ethUtil.keccak256(payload);
-    const sig = ethUtil.ecsign(
-      sigHash,
-      Buffer.from(bobPriv.replace("0x", ""), "hex")
-    );
+    const sig = lockReceipt(BOB, ONE_ETH, LOCK_TX_HASH).sign(BOB_PRIV);
     try {
       await bridge.collectLock(
-        bob,
-        "1000000000000000000",
-        txHash,
+        BOB,
+        ONE_ETH,
+        LOCK_TX_HASH,
         sig.v,
         sig.r,
         sig.s
@@ -202,28 +171,20 @@ contract("Bridge", (accounts) => {
 
   it("should not allow submit on executed relay.", async () => {
     // generate sig
-    let payload = abi.rawEncode(
-      ["address", "uint256", "bytes32"],
-      [alice, "1000000000000000000", txHash]
-    );
-    const sigHash = ethUtil.keccak256(payload);
-    const sig = ethUtil.ecsign(
-      sigHash,
-      Buffer.from(validatorPriv.replace("0x", ""), "hex")
-    );
+    const sig = lockReceipt(ALICE, ONE_ETH, LOCK_TX_HASH).sign(ALICE_PRIV);
     await bridge.collectLock(
-      alice,
-      "1000000000000000000",
-      txHash,
+      ALICE,
+      ONE_ETH,
+      LOCK_TX_HASH,
       sig.v,
       sig.r,
       sig.s
     );
     try {
       await bridge.collectLock(
-        alice,
-        "1000000000000000000",
-        txHash,
+        ALICE,
+        ONE_ETH,
+        LOCK_TX_HASH,
         sig.v,
         sig.r,
         sig.s
@@ -240,30 +201,23 @@ contract("Bridge", (accounts) => {
     await web3.eth.sendTransaction({
       from: accounts[0],
       to: bridge.address,
-      value: "2000000000000000000",
+      value: TWO_ETH,
     });
     // generate sig
-    let payload = abi.rawEncode(
-      ["address", "uint256", "bytes32"],
-      [alice, "1000000000000000000", txHash]
-    );
-    const sigHash = ethUtil.keccak256(payload);
-    const preAmount = await web3.eth.getBalance(alice);
+    const receipt = lockReceipt(ALICE, ONE_ETH, LOCK_TX_HASH);
+    const preAmount = await web3.eth.getBalance(ALICE);
     for (let i = 0; i < 3; i++) {
-      let sig = ethUtil.ecsign(
-        sigHash,
-        Buffer.from(ValidatorPrivSet[i].replace("0x", ""), "hex")
-      );
+      const sig = receipt.sign(ValidatorPrivSet[i]);
       await bridge.collectLock(
-        alice,
-        "1000000000000000000",
-        txHash,
+        ALICE,
+        ONE_ETH,
+        LOCK_TX_HASH,
         sig.v,
         sig.r,
         sig.s
       );
     }
-    const postAmount = await web3.eth.getBalance(alice);
+    const postAmount = await web3.eth.getBalance(ALICE);
     assert.equal(postAmount - 1000000000000000000, preAmount);
   });
 
@@ -272,24 +226,16 @@ contract("Bridge", (accounts) => {
     await web3.eth.sendTransaction({
       from: accounts[0],
       to: bridge.address,
-      value: "2000000000000000000",
+      value: TWO_ETH,
     });
     // generate sig
-    let payload = abi.rawEncode(
-      ["address", "uint256", "bytes32"],
-      [alice, "1000000000000000000", txHash]
-    );
-    const sigHash = ethUtil.keccak256(payload);
-    let sig;
+    const receipt = lockReceipt(ALICE, ONE_ETH, LOCK_TX_HASH);
     for (let i = 0; i < 2; i++) {
-      sig = ethUtil.ecsign(
-        sigHash,
-        Buffer.from(ValidatorPrivSet[i].replace("0x", ""), "hex")
-      );
+      sig = receipt.sign(ValidatorPrivSet[i]);
       await bridge.collectLock(
-        alice,
-        "1000000000000000000",
-        txHash,
+        ALICE,
+        ONE_ETH,
+        LOCK_TX_HASH,
         sig.v,
         sig.r,
         sig.s
@@ -298,9 +244,9 @@ contract("Bridge", (accounts) => {
 
     try {
       await bridge.collectLock(
-        alice,
-        "1000000000000000000",
-        txHash,
+        ALICE,
+        ONE_ETH,
+        LOCK_TX_HASH,
         sig.v,
         sig.r,
         sig.s
