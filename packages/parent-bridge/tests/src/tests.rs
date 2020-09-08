@@ -51,6 +51,8 @@ fn test_basic() {
 
     let outputs_data = vec![Bytes::new(); 1];
 
+    // in combat the secp256 lock script would check the withness
+    // for a signature, hence we can't use an actionByte here.
     let witnesses = vec![Bytes::new()];
 
     // build transaction
