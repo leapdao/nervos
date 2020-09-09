@@ -35,17 +35,6 @@ contract("Bridge", (accounts) => {
     });
   });
 
-  /*
-  it("should not crash Ethermint", async () => {
-    let unlockSigs = await bridge.getPastEvents(
-      "Burn",
-      { txHash: txHash },
-      { fromBlock: 0, toBlock: "latest" }
-    );
-    bridge = await Bridge.new(ValidatorSet);
-    bridge = await Bridge.new(ValidatorSet);
-  });
-*/
   it("should allow and collect unlock signatures", async () => {
     let txHash = await web3.eth.sendTransaction({
       from: accounts[0],
@@ -145,6 +134,7 @@ contract("Bridge", (accounts) => {
       throw new Error("expected to throw");
     } catch (error) {
       assert(error);
+      // Ethermint does not pass through the error message, once the issue is addressed the asserts can be changed back
       //assert(error.message.includes("signature already collected"));
     }
   });
@@ -196,6 +186,7 @@ contract("Bridge", (accounts) => {
       throw new Error("expected to throw");
     } catch (error) {
       assert(error);
+      // Ethermint does not pass through the error message, once the issue is addressed the asserts can be changed back
       //assert(error.message.includes("Signer needs to be part of validator set"));
     }
   });
@@ -231,6 +222,7 @@ contract("Bridge", (accounts) => {
       throw new Error("expected to throw");
     } catch (error) {
       assert(error);
+      // Ethermint does not pass through the error message, once the issue is addressed the asserts can be changed back
       //assert(error.message.includes("mint already executed"));
     }
   });
@@ -308,9 +300,10 @@ contract("Bridge", (accounts) => {
       throw new Error("expected to throw");
     } catch (error) {
       assert(error);
+      // Ethermint does not pass through the error message, once the issue is addressed the asserts can be changed back
       //assert(error.message.includes("signature already collected"));
     }
   });
-
+  //possible check to be added for reentry attack case
   it("reentry attack case", async () => {});
 });
