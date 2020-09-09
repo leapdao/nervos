@@ -423,10 +423,10 @@ ethereumjs-util@^6.0.0:
     ethjs-util "0.1.6"
     rlp "^2.2.3"
 
-ethereumjs-util@^7.0.3:
-  version "7.0.3"
-  resolved "https://registry.yarnpkg.com/ethereumjs-util/-/ethereumjs-util-7.0.3.tgz#d055fc7f852d79065d2e689002a789b1323cf3fd"
-  integrity sha512-uLQsGPOwsRxe50WV1Dybh5N8zXDz4ev7wP49LKX9kr28I5TmcDILPgpKK/BFe5zYSfRGEeo+hPT7W3tjghYLuA==
+ethereumjs-util@^7.0.4:
+  version "7.0.4"
+  resolved "https://registry.yarnpkg.com/ethereumjs-util/-/ethereumjs-util-7.0.4.tgz#f4b2022a91416bf421b35b0d5b81c21e8abd8b7f"
+  integrity sha512-isldtbCn9fdnhBPxedMNbFkNWVZ8ZdQvKRDSrdflame/AycAPKMer+vEpndpBxYIB3qxN6bd3Gh1YCQW9LDkCQ==
   dependencies:
     "@types/bn.js" "^4.11.3"
     bn.js "^5.1.2"

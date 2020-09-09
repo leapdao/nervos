@@ -41,10 +41,16 @@ contract Bridge {
   mapping(bytes32 => mapping(address => bool)) lockSigs;
 
   struct Sig {
-    bool complete;
     uint8 v;
     bytes32 r;
     bytes32 s;
+  }
+
+  struct Receipt {
+    bool isLock;
+    address user;
+    uint256 amount;
+    bytes32 txHash;
   }
 
   mapping(bytes32 => mapping(address => Sig)) unlockSigs;
@@ -81,7 +87,15 @@ contract Bridge {
   }
 
   function isUnlockComplete(bytes32 txHash) internal view returns (bool) {
-    return unlockSigs[txHash][address(0)].complete;
+    return unlockSigs[txHash][address(0)].v > 0;
+  }
+
+
+  function isValidReceiptSig(Receipt memory receipt, Sig memory sig) internal returns (bool) {
+    bytes32 sigHash = keccak256(abi.encode(receipt.isLock, receipt.user, receipt.amount, receipt.txHash));
+    address signer;
+    (, signer) = safer_ecrecover(sigHash, sig.v, sig.r, sig.s);
+    // what next?
   }
 
   /**
@@ -91,6 +105,20 @@ contract Bridge {
     validators = _validators;
   }
 
+  // getting error:
+  //     Error: invalid tuple value (coderType="tuple", value="0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000003fe6b42cbd2da14465d4b4b672e51e043d7adc6c0000000000000000000000000000000000000000000000001bc16d674ec800007006b92d930641648160ddba292bf0fe55982dda60202c4ba73762e09005a0ee")
+  // when trying to call this with:
+  //     const receipt = unlockReceipt(accounts[0], '2000000000000000000', txHash);
+  //     tx = await bridge.collect(receipt.getAbiReceipt(), receipt.getAbiSig(ALICE_PRIV));
+  // in unit tests
+  function collect(Receipt memory receipt, Sig memory sig) public {
+    require(isValidReceiptSig(receipt, sig), "invalid sig");
+    if (receipt.isLock) {
+      //collectLock(receipt.user, receipt.amount, receipt.txHash, sig.v, sig.r, sig.s);
+    } else {
+      //collectUnlock(receipt.user, receipt.amount, receipt.txHash, sig.v, sig.r, sig.s);
+    }
+  }
 
   /**
    * @dev aggregates signature of lock receipts in storage of contract.
@@ -109,7 +137,7 @@ contract Bridge {
     // check the lock
     require(!isMintComplete(txHash), "mint already executed");
     require(amount > 0, "amount needs to be larger than zero");
-    bytes32 sigHash = keccak256(abi.encode(to, amount, txHash));
+    bytes32 sigHash = keccak256(abi.encode(true, to, amount, txHash));
     address signer;
     (, signer) = safer_ecrecover(sigHash, v, r, s);
     uint256 signerCount = 0;
@@ -165,16 +193,15 @@ contract Bridge {
     require(amount > 0, "amount needs to be larger than zero");
     require(address(0) != from, "can not receive from zero address");
     require(bytes32(0) != txHash, "txHash not equal zero");
-    bytes32 sigHash = keccak256(abi.encode(from, amount, txHash));
+    bytes32 sigHash = keccak256(abi.encode(false, from, amount, txHash));
     address signer;
     (, signer) = safer_ecrecover(sigHash, v, r, s);
     uint256 signerCount = 0;
-    require(!unlockSigs[txHash][signer].complete, "signature already collected");
+    require(unlockSigs[txHash][signer].v == 0, "signature already collected");
     for (uint256 i = 0; i < validators.length; i++) {
       if (validators[i] == signer) {
         // payload
         unlockSigs[txHash][signer] = Sig({
-          complete: true,
           v: v,
           r: r,
           s: s
@@ -197,9 +224,9 @@ contract Bridge {
           fillUntil++;
         }
       }
-      unlockSigs[txHash][address(0)].complete = true;
+      unlockSigs[txHash][address(0)].v = 1;
       emit BurnQuorum(txHash, from, amount, signatures);
     }
-    require(unlockSigs[txHash][signer].complete, "Signer needs to be part of validator set");
+    require(unlockSigs[txHash][signer].v > 0, "Signer needs to be part of validator set");
   }
 }
