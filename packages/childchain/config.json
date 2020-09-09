@@ -1,0 +1,9 @@
+{
+  "validators": [
+    "0xf3beac30c498d9e26865f34fcaa57dbb935b0d74",
+    "0xe10f3d125e5f4c753a6456fc37123cf17c6900f2",
+    "0xc3ccb3902a164b83663947aff0284c6624f3fbf2",
+    "0x82e8c6cf42c8d1ff9594b17a3f50e94a12cc860f"
+  ],
+  "validatorStake": "20000000000000000000000000"
+}
