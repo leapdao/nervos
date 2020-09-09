@@ -88,6 +88,36 @@ enum StateTransition {
 }
 
 impl StateTransition {
+    fn get() -> Result<Self, Error> {
+        fn is_deploy() -> Result<bool, Error> {
+            let my_hash = load_script_hash()?;
+            return Ok(QueryIter::new(load_cell_type_hash, Source::Input)
+                .filter(|option| option.map_or(false, |hash| hash == my_hash))
+                .count() == 0);
+        }
+
+        if is_deploy()? {
+            let script_args: Bytes = load_script()?.args().raw_data();
+            let validators = parse_validator_list_from_args(&*script_args)?;
+            if validators.len() == 0 {
+                return Err(Error::EmptyValidatorList);
+            };
+            let state_id: Bytes = get_state_id()?;
+            debug!("validators: {:?}", validators);
+            return Ok(StateTransition::DeployBridge {
+                validators: validators,
+                id: state_id,
+            })
+        }
+
+        let mut wit_buf: [u8; 1] = [0];
+        load_witness(&mut wit_buf, 0, 0, Source::Input)?;
+
+        match wit_buf[0] {
+            _ => Err(Error::StateTransitionDoesNotExist),
+        }
+    }
+
     fn verify(&self) -> Result<(), Error> {
         match self {
             Self::DeployBridge { validators, id } => {
@@ -139,7 +169,7 @@ fn parse_validator_list_from_args(args: &[u8]) -> Result<Vec<Address>, Error> {
     // args consist of outpount + validator list
     // output has length of 36 bytes
     let val_args = &args[36..];
-    // validator address 
+    // validator address
     if val_args.len() % ADDRESS_LEN != 0 {
         return Err(Error::InvalidArgsEncoding);
     }
@@ -162,7 +192,7 @@ fn get_state_id() -> Result<Bytes, Error> {
 fn only_one_output_has_state_id() -> Result<(), Error> {
     let my_hash = load_script_hash()?;
     let num = QueryIter::new(load_cell_type_hash, Source::Output)
-        .filter(|option| option.map_or(false, |hash| hash == my_hash) )
+        .filter(|option| option.map_or(false, |hash| hash == my_hash))
         .count();
     if num > 1 {
         return Err(Error::TooManyTypeOutputs);
@@ -170,28 +200,7 @@ fn only_one_output_has_state_id() -> Result<(), Error> {
     Ok(())
 }
 
-fn get_state_transition() -> Result<StateTransition, Error> {
-    let mut wit_buf: [u8; 1] = [0];
-    load_witness(&mut wit_buf, 0, 0, Source::Input)?;
-    match wit_buf[0] {
-        0 => {
-            let script_args: Bytes = load_script()?.args().raw_data();
-            let validators = parse_validator_list_from_args(&*script_args)?;
-            if validators.len() == 0 {
-                return Err(Error::EmptyValidatorList);
-            };
-            let state_id: Bytes = get_state_id()?;
-            debug!("validators: {:?}", validators);
-            Ok(StateTransition::DeployBridge {
-                validators: validators,
-                id: state_id,
-            })
-        }
-        _ => Err(Error::StateTransitionDoesNotExist),
-    }
-}
-
 fn main() -> Result<(), Error> {
-    let state_transition = get_state_transition()?;
+    let state_transition = StateTransition::get()?;
     state_transition.verify()
 }
