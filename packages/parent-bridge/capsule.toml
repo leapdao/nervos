@@ -1,0 +1,5 @@
+deployment = "deployment.toml"
+
+[[contracts]]
+name = "parent-bridge"
+template_type = "Rust"
