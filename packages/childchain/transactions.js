@@ -20,7 +20,7 @@ const validators = config.validators;
   await web3.eth.sendTransaction({
     from: account.address,
     to: bridgeAddress,
-    value: "10000000000000000000000000000",
+    value: "9920000000000000000000000000",
   });
   //sending rest of the balance to zero address
   let totalBalance = new BN(await web3.eth.getBalance(account.address));

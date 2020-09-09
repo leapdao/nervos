@@ -28,7 +28,7 @@ ethermintd version
 ethermintd init $MONIKER --chain-id $CHAINID
 
 # Allocate genesis accounts (cosmos formatted addresses)
-ethermintd add-genesis-account $(ethermintcli keys show $KEY -a) 10100000000000000000000000000aphoton,1000000000000000000stake
+ethermintd add-genesis-account $(ethermintcli keys show $KEY -a) 10000000000000001000000000000aphoton,1000000000000000000stake
 
 # Sign genesis transaction
 ethermintd gentx --name $KEY --keyring-backend test
