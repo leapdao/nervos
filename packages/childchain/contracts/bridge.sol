@@ -90,12 +90,20 @@ contract Bridge {
     return unlockSigs[txHash][address(0)].v > 0;
   }
 
-
-  function isValidReceiptSig(Receipt memory receipt, Sig memory sig) internal returns (bool) {
+  // checks a receipt to contain a valid signature
+  function isValidReceiptSig(Receipt memory receipt, Sig memory sig, address[] memory validatorSet) internal returns (bool) {
+    // create signature hash
     bytes32 sigHash = keccak256(abi.encode(receipt.isLock, receipt.user, receipt.amount, receipt.txHash));
     address signer;
+    // recover signer of receipt
     (, signer) = safer_ecrecover(sigHash, sig.v, sig.r, sig.s);
-    // what next?
+    // compare signer to set of validators
+    for (uint256 i = 0; i < validatorSet.length; i++) {
+      if (validatorSet[i] == signer) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -111,10 +119,10 @@ contract Bridge {
   //     const receipt = unlockReceipt(accounts[0], '2000000000000000000', txHash);
   //     tx = await bridge.collect(receipt.getAbiReceipt(), receipt.getAbiSig(ALICE_PRIV));
   // in unit tests
-  function collect(Receipt memory receipt, Sig memory sig) public {
-    require(isValidReceiptSig(receipt, sig), "invalid sig");
+  function collect(Receipt calldata receipt, Sig calldata sig) external {
+    require(isValidReceiptSig(receipt, sig, validators), "invalid sig");
     if (receipt.isLock) {
-      //collectLock(receipt.user, receipt.amount, receipt.txHash, sig.v, sig.r, sig.s);
+      collectLock(receipt.user, receipt.amount, receipt.txHash, sig.v, sig.r, sig.s);
     } else {
       //collectUnlock(receipt.user, receipt.amount, receipt.txHash, sig.v, sig.r, sig.s);
     }
@@ -128,7 +136,7 @@ contract Bridge {
    * Emits a {Mint} event.
    */
   function collectLock(
-    address payable to,
+    address to,
     uint256 amount,
     bytes32 txHash,
     uint8 v,
@@ -159,7 +167,7 @@ contract Bridge {
       // set the lock
       lockSigs[txHash][address(0)] = true;
       // how to mint?! :shrug:
-      to.transfer(amount);
+      address(uint160(to)).transfer(amount);
       emit Mint(to, amount);
     }
     require(lockSigs[txHash][signer] == true, "Signer needs to be part of validator set");

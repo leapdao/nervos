@@ -28,7 +28,7 @@ const Receipt = class Receipt {
   }
 
   getAbiReceipt() {
-    return this.web3.eth.abi.encodeParameter(
+    const val = this.web3.eth.abi.encodeParameter(
       {
         "Receipt": {
           "isLock": 'bool',
@@ -43,6 +43,8 @@ const Receipt = class Receipt {
         "txHash": this.txHash
       }
     );
+    console.log(val);
+    return val;
   }
 
   getAbiSig(privKey) {

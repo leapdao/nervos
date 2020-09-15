@@ -42,14 +42,16 @@ contract("Bridge", (accounts) => {
     const txHash = tx.transactionHash;
     // create and sign unlock receipt
     const sig = unlockReceipt(accounts[0], TWO_ETH, txHash).sign(ALICE_PRIV);
-    tx = await bridge.collectUnlock(
-      accounts[0],
-      TWO_ETH,
-      txHash,
-      sig.v,
-      sig.r,
-      sig.s
-    );
+    const receipt = unlockReceipt(accounts[0], '2000000000000000000', txHash);
+    tx = await bridge.collect(receipt.getAbiReceipt(), receipt.getAbiSig(ALICE_PRIV));
+    // tx = await bridge.collectUnlock(
+    //   accounts[0],
+    //   TWO_ETH,
+    //   txHash,
+    //   sig.v,
+    //   sig.r,
+    //   sig.s
+    // );
     // with 2 events we assume that quorum has been reached.
     assert(tx.logs.length == 2, "validator quorum not reached");
   });
