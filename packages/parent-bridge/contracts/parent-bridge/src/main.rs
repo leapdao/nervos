@@ -82,9 +82,12 @@ impl From<SysError> for Error {
 }
 
 type Address = [u8; ADDRESS_LEN];
+type Receipt = [u8; 128];
+type Signature = [u8; 65];
 
 enum StateTransition {
     DeployBridge { validators: Vec<Address>, id: Bytes },
+    Payout { validators: Vec<Address>, id: Bytes,  receipt: Receipt, sigs: Vec<Signature>},
 }
 
 impl StateTransition {
@@ -96,14 +99,15 @@ impl StateTransition {
                 .count() == 0);
         }
 
+        let script_args: Bytes = load_script()?.args().raw_data();
+        let validators = parse_validator_list_from_args(&*script_args)?;
+        if validators.len() == 0 {
+            return Err(Error::EmptyValidatorList);
+        };
+        let state_id: Bytes = get_state_id()?;
+        debug!("validators: {:?}", validators);
+
         if is_deploy()? {
-            let script_args: Bytes = load_script()?.args().raw_data();
-            let validators = parse_validator_list_from_args(&*script_args)?;
-            if validators.len() == 0 {
-                return Err(Error::EmptyValidatorList);
-            };
-            let state_id: Bytes = get_state_id()?;
-            debug!("validators: {:?}", validators);
             return Ok(StateTransition::DeployBridge {
                 validators: validators,
                 id: state_id,
@@ -111,9 +115,17 @@ impl StateTransition {
         }
 
         let mut wit_buf: [u8; 1] = [0];
+        let receipt: [u8; 128] = [0; 128];
+        let sigs = Vec::new();
         load_witness(&mut wit_buf, 0, 0, Source::Input)?;
 
         match wit_buf[0] {
+            0 => Ok(StateTransition::Payout{
+                validators: validators,
+                id: state_id,
+                receipt: receipt,
+                sigs: sigs
+            }),
             _ => Err(Error::StateTransitionDoesNotExist),
         }
     }
@@ -151,6 +163,9 @@ impl StateTransition {
 
                 only_one_output_has_state_id()?;
 
+                Ok(())
+            },
+            Self::Payout { validators:_, id:_, receipt:_, sigs:_ } => {
                 Ok(())
             }
         }
