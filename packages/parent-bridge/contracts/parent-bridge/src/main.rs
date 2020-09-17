@@ -18,9 +18,8 @@ use ckb_std::{
     error::SysError,
     high_level::{
         load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
-        load_script, load_script_hash, QueryIter,
+        load_script, load_script_hash, QueryIter, load_transaction
     },
-    syscalls::load_witness,
 };
 
 entry!(entry);
@@ -107,20 +106,25 @@ impl StateTransition {
         let state_id: Bytes = get_state_id()?;
         debug!("validators: {:?}", validators);
 
-        if is_deploy()? {
+        let isd = is_deploy()?;
+        debug!("isd: {:?}", isd);
+        if isd {
             return Ok(StateTransition::DeployBridge {
                 validators: validators,
                 id: state_id,
             })
         }
 
-        let mut wit_buf: [u8; 194] = [0; 194];
+        // load first witness
+        let tx = load_transaction()?;
+        let witness = tx.witnesses().get_unchecked(0);
+        debug!("witness len: {:?}", witness);
+
+
         let receipt: [u8; 128] = [0; 128];
         let sigs = Vec::new();
-        let length = load_witness(&mut wit_buf, 0, 0, Source::Input)?;
-        debug!("length: {:?}", length);
 
-        match wit_buf[0] {
+        match (*witness.get_unchecked(0).as_slice())[0] {
             0 => Ok(StateTransition::Payout{
                 validators: validators,
                 id: state_id,
