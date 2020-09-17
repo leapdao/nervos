@@ -9,7 +9,7 @@ rm -rf ~/.ethermint*
 
 make install
 
-ethermintcli config keyring-backend test > /dev/null
+ethermintcli config keyring-backend test > key_creation.log
 
 # Set up config for CLI
 ethermintcli config chain-id $CHAINID
@@ -44,12 +44,15 @@ echo -e '\nrun the following command in a different terminal/window to run the R
 echo -e "ethermintcli rest-server --laddr \"tcp://localhost:8545\" --unlock-key $KEY --chain-id $CHAINID --trace\n"
 
 # Start the node (remove the --pruning=nothing flag if historical queries are not needed)
-ethermintd start --pruning=nothing --rpc.unsafe --log_level "main:info,state:info,mempool:info" --trace > /dev/null &
+ethermintd start --pruning=nothing --rpc.unsafe --log_level "main:info,state:info,mempool:info" --trace > ethermint-chain.log &
 
+#wait for chain to initialize before starting RPC server
 sleep 2
 
-coproc ethermintcli rest-server --laddr "tcp://localhost:8545" --unlock-key $KEY --chain-id $CHAINID --trace > /dev/null
+#starting RPC server
+coproc ethermintcli rest-server --laddr "tcp://localhost:8545" --unlock-key $KEY --chain-id $CHAINID --trace > ethermint-rpc.log
 
+#waiting for RPC server startup before migrating the Bridge contract
 sleep 2
 
 address=$(truffle migrate --network development | perl -lne 'print "$1" if /(?p)deployed-address:(.*)/' | sed -n '1p')
