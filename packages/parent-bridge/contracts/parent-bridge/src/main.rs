@@ -114,10 +114,11 @@ impl StateTransition {
             })
         }
 
-        let mut wit_buf: [u8; 1] = [0];
+        let mut wit_buf: [u8; 194] = [0; 194];
         let receipt: [u8; 128] = [0; 128];
         let sigs = Vec::new();
-        load_witness(&mut wit_buf, 0, 0, Source::Input)?;
+        let length = load_witness(&mut wit_buf, 0, 0, Source::Input)?;
+        debug!("length: {:?}", length);
 
         match wit_buf[0] {
             0 => Ok(StateTransition::Payout{

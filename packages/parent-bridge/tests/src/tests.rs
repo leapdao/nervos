@@ -137,7 +137,9 @@ fn test_unlock() {
     let witness = [action_byte, receipt, signature].concat();
 
     // empty witness for second input
-    let witnesses = vec![Bytes::from(witness), Bytes::new(), Bytes::new()];
+    let witnesses = vec![Bytes::from(witness),
+     //Bytes::new(), Bytes::new()
+     ];
 
     let recipient = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
     // TODO: actually use audit delay script
@@ -152,17 +154,20 @@ fn test_unlock() {
             .lock(lock_script.clone())
             .type_(Some(bridge_script.clone()).pack())
             .build(),
-        CellOutput::new_builder()
-            .capacity(10u64.pack())
-            .lock(audit_delay_lock.clone())
-            .build(),
-        CellOutput::new_builder()
-            .capacity(5u64.pack())
-            .lock(lock_script.clone())
-            .build()];
+        //CellOutput::new_builder()
+        //    .capacity(10u64.pack())
+        //    .lock(audit_delay_lock.clone())
+        //    .build(),
+        //CellOutput::new_builder()
+        //    .capacity(5u64.pack())
+        //    .lock(lock_script.clone())
+        //    .build()
+    ];
 
     // TODO: differentiate validator from spent transaction hashes in data from first output
-    let outputs_data = vec![Bytes::from(Vec::from_hex("bd7751d7743e0c6e79a2a2b27dceaf80148e92e47206ac643a2ad423f20a8f34").unwrap()), Bytes::new(), Bytes::new()];
+    let outputs_data = vec![Bytes::from(Vec::from_hex("bd7751d7743e0c6e79a2a2b27dceaf80148e92e47206ac643a2ad423f20a8f34").unwrap()),
+    //Bytes::new(), Bytes::new()
+    ];
 
     // build transaction
     let tx = TransactionBuilder::default()
