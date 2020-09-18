@@ -18,9 +18,8 @@ use ckb_std::{
     error::SysError,
     high_level::{
         load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
-        load_script, load_script_hash, QueryIter,
+        load_script, load_script_hash, QueryIter, load_transaction
     },
-    syscalls::load_witness,
 };
 
 entry!(entry);
@@ -65,6 +64,7 @@ enum Error {
     WrongStateId = 10,
     TooManyTypeOutputs = 11,
     EmptyValidatorList = 12,
+    InvalidWitnessEncoding = 13,
     // Add customized errors here...
 }
 
@@ -82,8 +82,8 @@ impl From<SysError> for Error {
 }
 
 type Address = [u8; ADDRESS_LEN];
-type Receipt = [u8; 128];
-type Signature = [u8; 65];
+type Receipt = &[u8];
+type Signature = &[u8];
 
 enum StateTransition {
     DeployBridge { validators: Vec<Address>, id: Bytes },
@@ -107,20 +107,40 @@ impl StateTransition {
         let state_id: Bytes = get_state_id()?;
         debug!("validators: {:?}", validators);
 
-        if is_deploy()? {
+        let isd = is_deploy()?;
+        debug!("isd: {:?}", isd);
+        if isd {
             return Ok(StateTransition::DeployBridge {
                 validators: validators,
                 id: state_id,
             })
         }
 
-        let mut wit_buf: [u8; 194] = [0; 194];
-        let receipt: [u8; 128] = [0; 128];
-        let sigs = Vec::new();
-        let length = load_witness(&mut wit_buf, 0, 0, Source::Input)?;
-        debug!("length: {:?}", length);
+        // load first witness
+        let tx = load_transaction()?;
+        let witness = tx.witnesses().get_unchecked(0);
 
-        match wit_buf[0] {
+        //check for correct Encoding of Witness
+        if witness.len() >= 194 && (witness.len()-129) % 65 != 0 {
+            return Err(Error::InvalidWitnessEncoding);
+        }
+        assert!(witness.len() < 194);
+        let receipt = &witness.get_unchecked(0).as_slice()[1..129];
+        let sigs = Vec::new();
+
+
+
+        //calculate vector length of signatures
+        let signatures_vector_length = (witness.len()-129)/65;
+
+        debug!("vectorLength: {:?}", signatures_vector_length);
+
+        for x in 0..signatures_vector_length {
+            sigs[x] = &(*witness.get_unchecked(0).as_slice())[129+x*65 .. 129+(x+1)*65];
+        }
+
+        // distinguished based on first byte of witness
+        match (*witness.get_unchecked(0).as_slice())[0] {
             0 => Ok(StateTransition::Payout{
                 validators: validators,
                 id: state_id,
@@ -166,7 +186,10 @@ impl StateTransition {
 
                 Ok(())
             },
-            Self::Payout { validators:_, id:_, receipt:_, sigs:_ } => {
+            Self::Payout { validators, id, receipt, sigs } => {
+
+                debug!("validators: {:?}, state_id: {:?}, sigs: {:?}", validators, id, sigs);
+
                 Ok(())
             }
         }
