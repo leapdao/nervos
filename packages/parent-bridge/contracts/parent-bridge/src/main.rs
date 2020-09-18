@@ -55,16 +55,17 @@ enum Error {
     IndexOutOfBound = 1,
     ItemMissing = 2,
     LengthNotEnough = 3,
-    Encoding = 4,
-    StateTransitionDoesNotExist = 5,
-    InvalidArgsEncoding = 6,
-    WrongLockScript = 7,
-    WrongTypeScript = 8,
-    DataLengthNotZero = 9,
-    WrongStateId = 10,
-    TooManyTypeOutputs = 11,
-    EmptyValidatorList = 12,
-    InvalidWitnessEncoding = 13,
+    Encoding = 5,
+    StateTransitionDoesNotExist = 6,
+    InvalidArgsEncoding = 7,
+    WrongLockScript = 8,
+    WrongTypeScript = 9,
+    DataLengthNotZero = 10,
+    WrongStateId = 11,
+    TooManyTypeOutputs = 12,
+    EmptyValidatorList = 15,
+    InvalidWitnessEncoding = 16,
+    InconsistentStateId = 17,
     // Add customized errors here...
 }
 
@@ -82,8 +83,8 @@ impl From<SysError> for Error {
 }
 
 type Address = [u8; ADDRESS_LEN];
-type Receipt = &[u8];
-type Signature = &[u8];
+type Receipt = [u8; 128];
+type Signature = [u8; 65];
 
 enum StateTransition {
     DeployBridge { validators: Vec<Address>, id: Bytes },
@@ -107,6 +108,8 @@ impl StateTransition {
         let state_id: Bytes = get_state_id()?;
         debug!("validators: {:?}", validators);
 
+        only_one_output_has_state_id()?;
+
         let isd = is_deploy()?;
         debug!("isd: {:?}", isd);
         if isd {
@@ -116,6 +119,7 @@ impl StateTransition {
             })
         }
 
+
         // load first witness
         let tx = load_transaction()?;
         let witness = tx.witnesses().get_unchecked(0);
@@ -124,9 +128,13 @@ impl StateTransition {
         if witness.len() >= 194 && (witness.len()-129) % 65 != 0 {
             return Err(Error::InvalidWitnessEncoding);
         }
-        assert!(witness.len() < 194);
-        let receipt = &witness.get_unchecked(0).as_slice()[1..129];
-        let sigs = Vec::new();
+        // read action byte
+        let action_byte: u8 = (*witness.get_unchecked(0).as_slice())[0];
+
+        // make receipt our own 💪
+        let mut receipt: [u8; 128] = [0u8; 128];
+        receipt.copy_from_slice(&witness.raw_data().slice(1..129));
+        let mut sigs = Vec::new();
 
 
 
@@ -136,11 +144,13 @@ impl StateTransition {
         debug!("vectorLength: {:?}", signatures_vector_length);
 
         for x in 0..signatures_vector_length {
-            sigs[x] = &(*witness.get_unchecked(0).as_slice())[129+x*65 .. 129+(x+1)*65];
+            let mut temp_sig: [u8; 65] = [0u8; 65];
+            temp_sig.copy_from_slice(&witness.raw_data().slice(129+x*65 .. 129+(x+1)*65));
+            sigs.push(temp_sig);
         }
 
         // distinguished based on first byte of witness
-        match (*witness.get_unchecked(0).as_slice())[0] {
+        match action_byte {
             0 => Ok(StateTransition::Payout{
                 validators: validators,
                 id: state_id,
@@ -182,14 +192,12 @@ impl StateTransition {
                     return Err(Error::WrongStateId);
                 }
 
-                only_one_output_has_state_id()?;
 
                 Ok(())
             },
             Self::Payout { validators, id, receipt, sigs } => {
 
-                debug!("validators: {:?}, state_id: {:?}, sigs: {:?}", validators, id, sigs);
-
+                debug!("validators: {:?}, id: {:?}, receipt: {:?}, sigs: {:?}", validators, id, receipt.len(), sigs.len());
                 Ok(())
             }
         }
@@ -229,7 +237,9 @@ fn get_state_id() -> Result<Bytes, Error> {
 
 // check there is always only one
 fn only_one_output_has_state_id() -> Result<(), Error> {
+    //load currently executed script, in this case Bridge type script
     let my_hash = load_script_hash()?;
+    //check how many times identical script appears in Outputs
     let num = QueryIter::new(load_cell_type_hash, Source::Output)
         .filter(|option| option.map_or(false, |hash| hash == my_hash))
         .count();
