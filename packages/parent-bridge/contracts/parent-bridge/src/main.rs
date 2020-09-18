@@ -22,6 +22,10 @@ use ckb_std::{
     },
 };
 
+use sha3::{Digest, Keccak256};
+use hex::encode;
+use hex::FromHex;
+
 entry!(entry);
 default_alloc!();
 
@@ -89,7 +93,7 @@ type Signature = [u8; 65];
 
 enum StateTransition {
     DeployBridge { validators: Vec<Address>, id: Bytes },
-    Payout { validators: Vec<Address>, id: Bytes,  receipt: Receipt, sigs: Vec<Signature>},
+    Payout { validators: Vec<Address>, id: Bytes,  receipt: Receipt, sigs: Vec<Signature>, amount: u128},
 }
 
 fn verify_payout_amount() -> Result<u128, Error> {
@@ -118,6 +122,7 @@ fn verify_payout_amount() -> Result<u128, Error> {
 
     Ok(payout_capacity)
 }
+
 
 impl StateTransition {
     fn get() -> Result<Self, Error> {
@@ -148,11 +153,11 @@ impl StateTransition {
             })
         }
 
-        
+
         // check capacity
-        verify_payout_amount();
+        //let amount: u128 = verify_payout_amount()?;
 
-
+        let amount: u128 = 0;
         // load first witness
         let tx = load_transaction()?;
         let witness = tx.witnesses().get_unchecked(0);
@@ -188,7 +193,8 @@ impl StateTransition {
                 validators: validators,
                 id: state_id,
                 receipt: receipt,
-                sigs: sigs
+                sigs: sigs,
+                amount: amount
             }),
             _ => Err(Error::StateTransitionDoesNotExist),
         }
@@ -228,9 +234,12 @@ impl StateTransition {
 
                 Ok(())
             },
-            Self::Payout { validators, id, receipt, sigs } => {
+            Self::Payout { validators, id, receipt, sigs, amount } => {
 
-                debug!("validators: {:?}, id: {:?}, receipt: {:?}, sigs: {:?}", validators, id, receipt.len(), sigs.len());
+                let hash = Keccak256::digest(&Bytes::from(Vec::from_hex("00000000000000000000000000000000000000000000000000000000000000011122334411223344112233441122334411223344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2").unwrap()));
+                debug!("Hash: {:?}", encode(hash));
+
+                debug!("validators: {:?}, id: {:?}, receipt: {:?}, sigs: {:?}, amount: {:?}", validators, id, receipt.len(), sigs.len(), amount);
                 Ok(())
             }
         }
