@@ -120,8 +120,12 @@ impl StateTransition {
         let witness = tx.witnesses().get_unchecked(0);
         debug!("witness len: {:?}", witness);
 
+        // read action byte
+        let action_byte: u8 = (*witness.get_unchecked(0).as_slice())[0];
 
-        let receipt: [u8; 128] = [0; 128];
+        // make receipt our own 💪
+        let mut receipt: [u8; 128] = [0u8; 128];
+        receipt.copy_from_slice(&witness.raw_data().slice(1..129));
         let sigs = Vec::new();
 
         match (*witness.get_unchecked(0).as_slice())[0] {
@@ -170,7 +174,9 @@ impl StateTransition {
 
                 Ok(())
             },
-            Self::Payout { validators:_, id:_, receipt:_, sigs:_ } => {
+            Self::Payout { validators:_, id:_, receipt, sigs:_ } => {
+
+                debug!("isd: {:?}", receipt.len());
                 Ok(())
             }
         }
