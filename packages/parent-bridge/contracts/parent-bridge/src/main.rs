@@ -18,7 +18,7 @@ use ckb_std::{
     error::SysError,
     high_level::{
         load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
-        load_script, load_script_hash, QueryIter, load_transaction
+        load_script, load_script_hash, QueryIter, load_transaction, load_cell_capacity
     },
 };
 
@@ -66,6 +66,7 @@ enum Error {
     EmptyValidatorList = 15,
     InvalidWitnessEncoding = 16,
     InconsistentStateId = 17,
+    InvalidPayoutAmount = 18,
     // Add customized errors here...
 }
 
@@ -91,6 +92,33 @@ enum StateTransition {
     Payout { validators: Vec<Address>, id: Bytes,  receipt: Receipt, sigs: Vec<Signature>},
 }
 
+fn verify_payout_amount() -> Result<u128, Error> {
+    // let mut remainder_capacity: u128 = 0;
+    // let mut payout_capacity: u128 = 0;
+    // let mut inputs_capacity: u128 = 0;
+
+    let remainder_capacity = match load_cell_capacity(0, Source::Output) {
+        Ok(rc) => (rc as u128),
+        Err(err) => return Err(err.into()),
+    };
+
+    let payout_capacity = match load_cell_capacity(0, Source::Output) {
+        Ok(pc) => (pc as u128),
+        Err(err) => return Err(err.into()),
+    };
+    let inputs_capacity = match load_cell_capacity(0, Source::Input) {
+        Ok(ic) => (ic as u128),
+        Err(err) => return Err(err.into()),
+    };
+
+    // TODO: can there be an overflow here? if payout > remainder
+    if inputs_capacity != remainder_capacity - payout_capacity {
+        return Err(Error::InvalidPayoutAmount);
+    };
+
+    Ok(payout_capacity)
+}
+
 impl StateTransition {
     fn get() -> Result<Self, Error> {
         fn is_deploy() -> Result<bool, Error> {
@@ -108,6 +136,7 @@ impl StateTransition {
         let state_id: Bytes = get_state_id()?;
         debug!("validators: {:?}", validators);
 
+        // check state ID
         only_one_output_has_state_id()?;
 
         let isd = is_deploy()?;
@@ -118,6 +147,10 @@ impl StateTransition {
                 id: state_id,
             })
         }
+
+        
+        // check capacity
+        verify_payout_amount();
 
 
         // load first witness
