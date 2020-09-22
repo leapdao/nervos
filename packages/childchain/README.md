@@ -18,8 +18,22 @@ The underlying bash-Script `childchain.sh` starts the Ethermint chain, initializ
 
 Requirements to run this script are the installation of Ethermint, truffle, node.js, perl and sed.
 
-After the Ethermint chain is started, the genesis account is used to deploy the Bridge contract using `truffle migrate`.
+After the Ethermint chain is started, a genesis deployment account is used to deploy the Bridge contract using `truffle migrate`.
 
-Remaining minted tokens are burnt by sending them to the zero address.
+To start the chain, nothing more than `./childchain.sh` has to be executed.
+At present a single validator has been loaded using a mnemonic key, in the future, configuration may be changed through config.json.
 
-To start the chain, nothing more than `./childchain.sh` has to be executed. The validators can be configured using `config.json` as well as their initial stakes.
+# setup for a production version
+
+For any validator setup the following components shall be needed.
+Namely a deployment server to communicate the operators(validators) to the parent chain, read staking information from the parent chain, distributing template genesis files, collecting genesis transactions as well as redistributing those to the operators.Finally, the childchain bridge shall be deployed by the deployment server after the chain has started.
+
+The simplest setup for a production version will be a single validator setup, more commonly a multi validator setup is expected to be used.
+
+# single validator setup
+
+![single validator setup](https://i.imgur.com/KpFOahO.jpg)
+
+# multi validator setup
+
+![multi validator setup](https://i.imgur.com/JUbWrCD.jpg)
