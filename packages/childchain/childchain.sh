@@ -2,8 +2,7 @@
 KEY="mykey"
 CHAINID=8
 MONIKER="localtestnet"
-VALIDATORS=("0xf3beac30c498d9e26865f34fcaa57dbb935b0d74" "0xe10f3d125e5f4c753a6456fc37123cf17c6900f2" "0xc3ccb3902a164b83663947aff0284c6624f3fbf2" "0x82e8c6cf42c8d1ff9594b17a3f50e94a12cc860f")
-VALUE=
+ALICE_PK="0x278a5de700e29faae8e40e366ec5012b5ec63d36ec77e8a2417154cc1d25383f"
 # remove existing daemon and client
 rm -rf ~/.ethermint*
 
@@ -21,18 +20,22 @@ ethermintcli config trust-node true
 ethermintcli keys add $KEY --algo "eth_secp256k1"
 pk=$(ethermintcli keys unsafe-export-eth-key $KEY)
 
+# creates validator key and adds it to keyring
+ethermintcli keys delete validator
+echo "slide illness naive return canvas almost seven eager custom runway fish panther gas choice wall moral fork fine muffin report sword acid decorate steel"| ethermintcli keys add validator --recover
+
 # get version
 ethermintd version
 
 # Set moniker and chain-id for Ethermint (Moniker can be anything, chain-id must be an integer)
 ethermintd init $MONIKER --chain-id $CHAINID
 
-# Allocate genesis accounts (cosmos formatted addresses)
-
-ethermintd add-genesis-account $(ethermintcli keys show $KEY -a) 10000000000000001000000000000aphoton,1000000000000000000stake
+# Allocate genesis accounts (cosmos formatted addresses) 16^30 for deployment account
+ethermintd add-genesis-account $(ethermintcli keys show $KEY -a) 1329227995784915862903807060280344576aphoton
+ethermintd add-genesis-account $(ethermintcli keys show "validator" -a) 10000000000000000000aphoton,5000000000000000000stake
 
 # Sign genesis transaction
-ethermintd gentx --name $KEY --keyring-backend test
+ethermintd gentx --name "validator" --keyring-backend test
 
 # Collect genesis tx
 ethermintd collect-gentxs
