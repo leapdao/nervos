@@ -21,7 +21,7 @@ ethermintcli keys add $KEY --algo "eth_secp256k1"
 pk=$(ethermintcli keys unsafe-export-eth-key $KEY)
 
 # creates validator key and adds it to keyring
-ethermintcli keys delete validator
+ethermintcli keys delete validator || true
 echo "slide illness naive return canvas almost seven eager custom runway fish panther gas choice wall moral fork fine muffin report sword acid decorate steel"| ethermintcli keys add validator --recover
 
 # get version
