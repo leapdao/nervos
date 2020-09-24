@@ -14,7 +14,24 @@ To compile the contracts run `truffle build`, to run the tests run `truffle test
 
 # Prerequisites
 
-Requirements to run this script are the installation of Ethermint, truffle, node.js, perl and sed.
+Requirements to run this script are the installation of Ethermint (ethermintd >= v0.0.0-36-g4344dc1), truffle >= v5.1.42, node.js >= v14.0, perl >= v5.32.0 and sed.
+
+# Local testnet setup
+
+Edit the \$HOME/.ethermintd/config/app.toml to accept minimal gas prices.
+
+```
+# This is a TOML config file.
+# For more information, see https://github.com/toml-lang/toml
+
+##### main base config options #####
+
+# The minimum gas prices a validator is willing to accept for processing a
+# transaction. A transaction's fees must meet the minimum of any denomination
+# specified in this config (e.g. 10aphoton).
+
+minimum-gas-prices = ""
+```
 
 # Start-up script
 
