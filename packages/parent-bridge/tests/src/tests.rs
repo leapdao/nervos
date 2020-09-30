@@ -3,7 +3,7 @@ use ckb_testtool::{builtin::ALWAYS_SUCCESS, context::Context};
 use ckb_tool::ckb_types::{bytes::Bytes, core::TransactionBuilder, packed::*, prelude::*};
 use hex::FromHex;
 
-const MAX_CYCLES: u64 = 10_000_000;
+const MAX_CYCLES: u64 = 100_000_000;
 
 #[test]
 fn test_deploy() {
@@ -131,7 +131,7 @@ fn test_unlock() {
         .previous_output(prev_bridge_outpoint).build();
 
     //witness for first input
-    let signature = Bytes::from(Vec::from_hex("cba350d5537ab7152a8a6eabd5a499a152b24d72494c4002d8438b4b51da68990e659f9abedf191adeecf4db23cc356d4de9f813432c1bdb43724ecac3ec5bd11c").unwrap());
+    let signature = Bytes::from(Vec::from_hex("cba350d5537ab7152a8a6eabd5a499a152b24d72494c4002d8438b4b51da68990e659f9abedf191adeecf4db23cc356d4de9f813432c1bdb43724ecac3ec5bd101").unwrap());
     let receipt = Bytes::from(Vec::from_hex("0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000143e0824e4a966bb7ce6566e48172dde8c00ecad0000000000000000000000000000000000000000000000001bc16d674ec80000bd7751d7743e0c6e79a2a2b27dceaf80148e92e47206ac643a2ad423f20a8f34").unwrap());
     let action_byte = Bytes::from(Vec::from_hex("00").unwrap());
     let witness = [action_byte, receipt, signature].concat();
