@@ -21,10 +21,13 @@ use ckb_std::{
         load_script, load_script_hash, QueryIter, load_transaction, load_cell_capacity
     },
 };
-
+use k256::{
+    ecdsa::{recoverable},
+};
 use sha3::{Digest, Keccak256};
 use hex::encode;
 use hex::FromHex;
+use core::convert::TryFrom;
 
 entry!(entry);
 default_alloc!();
@@ -214,11 +217,23 @@ impl StateTransition {
                 Ok(())
             },
             Self::Payout { validators, id, receipt, sigs, amount } => {
-
+                //let mut signerAddrs: = Vec::new();
+                for i in 0..(sigs.len()) {
+                    //let hash = Keccak256::digest(&receipt[..]);
+                    let hash = Keccak256::new().chain(&receipt[..]);
+                    //let signature: = Signature.new(Signature::from(sigs[i].slice(0..64)), sigs[i]);
+                    //let sig: recoverable::Signature = recoverable::Signature::into(&sigs[i][..]);
+                    let sig: recoverable::Signature = recoverable::Signature::try_from(&sigs[i][..]).unwrap();
+                    debug!("Sig: {:?}", sig);
+                    let recovered_key = sig.recover_verify_key_from_digest(hash).unwrap();
+                    debug!("rk: {:?}", recovered_key);
+                    // signerAddrs[i] = 
+                    //debug!("key: 0x{:?}", hex::encode(&recovered_key.to_bytes()[0..32]));
+                }
                 let hash = Keccak256::digest(&Bytes::from(Vec::from_hex("00000000000000000000000000000000000000000000000000000000000000011122334411223344112233441122334411223344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2").unwrap()));
-                debug!("Hash: {:?}", encode(hash));
+                debug!("Hash2: {:?}", encode(hash));
 
-                debug!("validators: {:?}, id: {:?}, receipt: {:?}, sigs: {:?}, amount: {:?}", validators, id, receipt.len(), sigs.len(), amount);
+                debug!("debug: {:?}, id: {:?}, receipt: {:?}, sigs: {:?}, amount: {:?}", validators, id, receipt.len(), sigs.len(), amount);
                 Ok(())
             }
         }
