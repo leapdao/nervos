@@ -9,6 +9,7 @@ pub enum Error {
     Encoding,
     // Add customized errors here...
     MissingCorrectTypeOrLockScript,
+    WrongScriptArgsLength,
 }
 
 impl From<SysError> for Error {
