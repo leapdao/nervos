@@ -18,7 +18,7 @@ use ckb_std::{
     error::SysError,
     high_level::{
         load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
-        load_script, load_script_hash, QueryIter,
+        load_script, load_script_hash, QueryIter, load_cell_capacity
     },
     syscalls::load_witness,
 };
@@ -47,6 +47,10 @@ const ANYONE_CAN_PAY_CODE_HASH: [u8; 32] = [
     230, 131, 176, 65, 57, 52, 71, 104, 52, 132, 153, 194, 62, 177, 50, 109, 90, 82, 214, 219, 0,
     108, 13, 47, 236, 224, 10, 131, 31, 54, 96, 215,
 ];
+const DEPOSIT_LOCK_CODE_HASH: [u8; 32] = [
+    230, 131, 176, 65, 57, 52, 71, 104, 52, 132, 153, 194, 62, 177, 50, 109, 90, 82, 214, 219, 0,
+    108, 13, 47, 236, 224, 10, 131, 31, 54, 96, 215,
+];
 
 const ADDRESS_LEN: usize = 20;
 
@@ -66,6 +70,7 @@ enum Error {
     WrongStateId = 10,
     TooManyTypeOutputs = 11,
     EmptyValidatorList = 12,
+    DepositCapacityComputedIncorrectly = 13,
     // Add customized errors here...
 }
 
@@ -86,6 +91,7 @@ type Address = [u8; ADDRESS_LEN];
 
 enum StateTransition {
     DeployBridge { validators: Vec<Address>, id: Bytes },
+    CollectDeposits { total: u64, cap_before: u64, cap_after: u64 },
 }
 
 impl StateTransition {
@@ -115,6 +121,21 @@ impl StateTransition {
         load_witness(&mut wit_buf, 0, 0, Source::Input)?;
 
         match wit_buf[0] {
+            0 => {
+                let bridge_cap_before = load_cell_capacity(0, Source::Input)?;
+                let bridge_cap_after = load_cell_capacity(0, Source::Output)?;
+                let total_deposit_capacity = QueryIter::new(load_cell_lock, Source::Input)
+                    .zip(QueryIter::new(load_cell_capacity, Source::Input))
+                    .filter(|(script, _)| *script.code_hash().raw_data() == DEPOSIT_LOCK_CODE_HASH[..])
+                    .map(|(_, cap)| cap)
+                    .sum();
+                Ok(Self::CollectDeposits {
+                    total: total_deposit_capacity,
+                    cap_before: bridge_cap_before,
+                    cap_after: bridge_cap_after,
+                })
+                    
+            }
             _ => Err(Error::StateTransitionDoesNotExist),
         }
     }
@@ -152,6 +173,12 @@ impl StateTransition {
 
                 only_one_output_has_state_id()?;
 
+                Ok(())
+            }
+            Self::CollectDeposits { total, cap_before, cap_after } => {
+                if *cap_after != total + cap_before {
+                    return Err(Error::DepositCapacityComputedIncorrectly);
+                }
                 Ok(())
             }
         }
