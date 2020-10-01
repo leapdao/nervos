@@ -2,6 +2,7 @@ use super::*;
 use ckb_testtool::{builtin::ALWAYS_SUCCESS, context::Context};
 use ckb_tool::ckb_types::{bytes::Bytes, core::TransactionBuilder, packed::*, prelude::*};
 use hex::FromHex;
+use ckb_tool::{ckb_error::assert_error_eq, ckb_script::ScriptError};
 
 const MAX_CYCLES: u64 = 10_000_000;
 
@@ -130,10 +131,11 @@ fn test_state_transition_does_not_exist() {
         .build();
     let tx = context.complete_tx(tx);
 
-    let cycles = context
+    let err = context
         .verify_tx(&tx, MAX_CYCLES)
-        .expect_err("fail verification");
-    println!("consume cycles: {}", cycles);
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(5));
 }
 
 #[test]
@@ -194,10 +196,11 @@ fn test_wrong_validator_list_length() {
         .build();
     let tx = context.complete_tx(tx);
 
-    let cycles = context
+    let err = context
         .verify_tx(&tx, MAX_CYCLES)
-        .expect_err("fail verification");
-    println!("consume cycles: {}", cycles);
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(6));
 }
 
 #[test]
@@ -258,10 +261,11 @@ fn test_wrong_lock_script() {
         .build();
     let tx = context.complete_tx(tx);
 
-    let cycles = context
+    let err = context
         .verify_tx(&tx, MAX_CYCLES)
-        .expect_err("fail verification");
-    println!("consume cycles: {}", cycles);
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(7));
 }
 
 #[test]
@@ -327,10 +331,11 @@ fn test_wrong_type_script() {
         .build();
     let tx = context.complete_tx(tx);
 
-    let cycles = context
+    let err = context
         .verify_tx(&tx, MAX_CYCLES)
-        .expect_err("fail verification");
-    println!("consume cycles: {}", cycles);
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(8));
 }
 
 #[test]
@@ -391,10 +396,11 @@ fn test_data_length_not_zero() {
         .build();
     let tx = context.complete_tx(tx);
 
-    let cycles = context
+    let err = context
         .verify_tx(&tx, MAX_CYCLES)
-        .expect_err("fail verification");
-    println!("consume cycles: {}", cycles);
+        .unwrap_err();
+    
+    assert_error_eq!(err, ScriptError::ValidationFailure(9));
 }
 
 #[test]
@@ -456,10 +462,11 @@ fn test_wrong_state_id() {
         .build();
     let tx = context.complete_tx(tx);
 
-    let cycles = context
+    let err = context
         .verify_tx(&tx, MAX_CYCLES)
-        .expect_err("fail verification");
-    println!("consume cycles: {}", cycles);
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(10));
 }
 
 #[test]
@@ -525,8 +532,9 @@ fn test_too_many_type_outputs() {
         .build();
     let tx = context.complete_tx(tx);
 
-    let cycles = context
+    let err = context
         .verify_tx(&tx, MAX_CYCLES)
-        .expect_err("fail verification");
-    println!("consume cycles: {}", cycles);
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(11));
 }
