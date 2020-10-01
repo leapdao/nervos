@@ -104,7 +104,6 @@ impl StateTransition {
                 // data on output0 should be nothing
                 let data = load_cell_data(0, Source::Output)?;
 
-                // if !data.len() == 0 {
                 if data.len() != 0 {
                     return Err(Error::DataLengthNotZero);
                 }
@@ -174,7 +173,6 @@ fn get_state_transition() -> Result<StateTransition, Error> {
             let script_args: Bytes = load_script()?.args().raw_data();
             let validators = parse_validator_list_from_args(&*script_args)?;
             let state_id: Bytes = get_state_id()?;
-            // debug!("validators: {:?}", validators);
             Ok(StateTransition::DeployBridge {
                 validators: validators,
                 id: state_id,
