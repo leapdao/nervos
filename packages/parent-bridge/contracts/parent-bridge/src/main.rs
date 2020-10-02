@@ -57,6 +57,7 @@ enum Error {
     ItemMissing = 2,
     LengthNotEnough = 3,
     Encoding = 4,
+    // Custom errors below
     StateTransitionDoesNotExist = 5,
     InvalidArgsEncoding = 6,
     WrongLockScript = 7,
@@ -136,7 +137,7 @@ impl StateTransition {
                 // data on output0 should be nothing
                 let data = load_cell_data(0, Source::Output)?;
 
-                if !data.len() == 0 {
+                if data.len() != 0 {
                     return Err(Error::DataLengthNotZero);
                 }
                 // verify typescript args contains id and validators
