@@ -222,10 +222,6 @@ fn parse_validator_list_from_args(args: &[u8]) -> Result<Vec<Address>, Error> {
     Ok(validators)
 }
 
-fn verify_state_id() -> Result<(), Error> {
-    
-}
-
 fn get_state_id() -> Result<Bytes, Error> {
     let outpoint = load_input_out_point(0, Source::Input)?;
     let tx_hash: &[u8] = &*outpoint.tx_hash().raw_data();

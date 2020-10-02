@@ -75,70 +75,70 @@ fn test_success() {
     println!("consume cycles: {}", cycles);
 }
 
-#[test]
-fn test_state_transition_does_not_exist() {
-    let mut context = Context::default();
+// #[test]
+// fn test_state_transition_does_not_exist() {
+//     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
-    let lock_script = context
-        .build_script(&always_success_out_point, Default::default())
-        .expect("script");
-    let lock_script_dep = CellDep::new_builder()
-        .out_point(always_success_out_point)
-        .build();
+//     let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+//     let lock_script = context
+//         .build_script(&always_success_out_point, Default::default())
+//         .expect("script");
+//     let lock_script_dep = CellDep::new_builder()
+//         .out_point(always_success_out_point)
+//         .build();
 
-    let validator_list = Bytes::from(Vec::from_hex("1122334411223343241123344112233441122344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
+//     let validator_list = Bytes::from(Vec::from_hex("1122334411223343241123344112233441122344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
 
-    let input_out_point = context.create_cell(
-        CellOutput::new_builder()
-            .capacity(10u64.pack())
-            .lock(lock_script.clone())
-            .build(),
-        Default::default(),
-    );
-    let input = CellInput::new_builder()
-        .previous_output(input_out_point)
-        .build();
+//     let input_out_point = context.create_cell(
+//         CellOutput::new_builder()
+//             .capacity(10u64.pack())
+//             .lock(lock_script.clone())
+//             .build(),
+//         Default::default(),
+//     );
+//     let input = CellInput::new_builder()
+//         .previous_output(input_out_point)
+//         .build();
 
-    let tx_hash: &[u8] = &*input.previous_output().tx_hash().raw_data();
-    let index: &[u8] = &*input.previous_output().index().raw_data();
-    let state_id = Bytes::from([tx_hash, index].concat());
+//     let tx_hash: &[u8] = &*input.previous_output().tx_hash().raw_data();
+//     let index: &[u8] = &*input.previous_output().index().raw_data();
+//     let state_id = Bytes::from([tx_hash, index].concat());
 
-    let type_script_args = Bytes::from([&*state_id, &*validator_list].concat());
+//     let type_script_args = Bytes::from([&*state_id, &*validator_list].concat());
 
-    let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
-    let contract_out_point = context.deploy_cell(contract_bin);
-    let bridge_script = context
-        .build_script(&contract_out_point, type_script_args)
-        .expect("script");
-    let bridge_script_dep = CellDep::new_builder().out_point(contract_out_point).build();
+//     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
+//     let contract_out_point = context.deploy_cell(contract_bin);
+//     let bridge_script = context
+//         .build_script(&contract_out_point, type_script_args)
+//         .expect("script");
+//     let bridge_script_dep = CellDep::new_builder().out_point(contract_out_point).build();
 
-    let outputs = vec![CellOutput::new_builder()
-        .capacity(0u64.pack())
-        .lock(lock_script.clone())
-        .type_(Some(bridge_script.clone()).pack())
-        .build()];
+//     let outputs = vec![CellOutput::new_builder()
+//         .capacity(0u64.pack())
+//         .lock(lock_script.clone())
+//         .type_(Some(bridge_script.clone()).pack())
+//         .build()];
 
-    let outputs_data = vec![Bytes::new(); 1];
+//     let outputs_data = vec![Bytes::new(); 1];
 
-    let witnesses = vec![Bytes::from(vec![1 as u8; 1]); 1];
+//     let witnesses = vec![Bytes::from(vec![18 as u8; 1]); 1];
 
-    let tx = TransactionBuilder::default()
-        .input(input)
-        .outputs(outputs)
-        .outputs_data(outputs_data.pack())
-        .cell_dep(lock_script_dep)
-        .cell_dep(bridge_script_dep)
-        .witnesses(witnesses.pack())
-        .build();
-    let tx = context.complete_tx(tx);
+//     let tx = TransactionBuilder::default()
+//         .input(input)
+//         .outputs(outputs)
+//         .outputs_data(outputs_data.pack())
+//         .cell_dep(lock_script_dep)
+//         .cell_dep(bridge_script_dep)
+//         .witnesses(witnesses.pack())
+//         .build();
+//     let tx = context.complete_tx(tx);
 
-    let err = context
-        .verify_tx(&tx, MAX_CYCLES)
-        .unwrap_err();
+//     let err = context
+//         .verify_tx(&tx, MAX_CYCLES)
+//         .unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(5));
-}
+//     assert_error_eq!(err, ScriptError::ValidationFailure(5));
+// }
 
 #[test]
 fn test_wrong_validator_list_length() {
@@ -541,6 +541,7 @@ fn test_too_many_type_outputs() {
     assert_error_eq!(err, ScriptError::ValidationFailure(11));
 }
 
+#[test]
 fn test_deposit_with_lock() {
     let mut context = Context::default();
 
