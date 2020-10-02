@@ -17,8 +17,8 @@ use ckb_std::{
     debug, default_alloc, entry,
     error::SysError,
     high_level::{
-        load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
-        load_script, load_script_hash, QueryIter, load_cell_capacity
+        load_cell_capacity, load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash,
+        load_input_out_point, load_script, load_script_hash, QueryIter,
     },
     syscalls::load_witness,
 };
@@ -48,8 +48,9 @@ const ANYONE_CAN_PAY_CODE_HASH: [u8; 32] = [
     108, 13, 47, 236, 224, 10, 131, 31, 54, 96, 215,
 ];
 const DEPOSIT_LOCK_CODE_HASH: [u8; 32] = [
-    230, 131, 176, 65, 57, 52, 71, 104, 52, 132, 153, 194, 62, 177, 50, 109, 90, 82, 214, 219, 0,
-    108, 13, 47, 236, 224, 10, 131, 31, 54, 96, 215,
+    0x5c, 0x56, 0x9d, 0xd6, 0x08, 0xb6, 0x74, 0x10, 0x05, 0x9c, 0x50, 0xd4, 0x25, 0x71, 0x80,
+    0xb8, 0x3e, 0x47, 0x99, 0x3b, 0xbd, 0xcc, 0xd4, 0x83, 0x6c, 0xb9, 0x6e, 0xd9, 0xc4, 0x30, 0x51,
+    0x45,
 ];
 
 const ADDRESS_LEN: usize = 20;
@@ -61,7 +62,7 @@ enum Error {
     ItemMissing = 2,
     LengthNotEnough = 3,
     Encoding = 4,
-    // Custom errors below
+    // Add customized errors here...
     StateTransitionDoesNotExist = 5,
     InvalidArgsEncoding = 6,
     WrongLockScript = 7,
@@ -71,7 +72,6 @@ enum Error {
     TooManyTypeOutputs = 11,
     EmptyValidatorList = 12,
     DepositCapacityComputedIncorrectly = 13,
-    // Add customized errors here...
 }
 
 impl From<SysError> for Error {
@@ -90,8 +90,15 @@ impl From<SysError> for Error {
 type Address = [u8; ADDRESS_LEN];
 
 enum StateTransition {
-    DeployBridge { validators: Vec<Address>, id: Bytes },
-    CollectDeposits { total: u64, cap_before: u64, cap_after: u64 },
+    DeployBridge {
+        validators: Vec<Address>,
+        id: Bytes,
+    },
+    CollectDeposits {
+        total: u64,
+        cap_before: u64,
+        cap_after: u64,
+    },
 }
 
 impl StateTransition {
@@ -100,7 +107,8 @@ impl StateTransition {
             let my_hash = load_script_hash()?;
             return Ok(QueryIter::new(load_cell_type_hash, Source::Input)
                 .filter(|option| option.map_or(false, |hash| hash == my_hash))
-                .count() == 0);
+                .count()
+                == 0);
         }
 
         if is_deploy()? {
@@ -110,23 +118,24 @@ impl StateTransition {
                 return Err(Error::EmptyValidatorList);
             };
             let state_id: Bytes = get_state_id()?;
-            debug!("validators: {:?}", validators);
             return Ok(StateTransition::DeployBridge {
                 validators: validators,
                 id: state_id,
-            })
+            });
         }
 
         let mut wit_buf: [u8; 1] = [0];
         load_witness(&mut wit_buf, 0, 0, Source::Input)?;
 
         match wit_buf[0] {
-            0 => {
+            1 => {
                 let bridge_cap_before = load_cell_capacity(0, Source::Input)?;
                 let bridge_cap_after = load_cell_capacity(0, Source::Output)?;
                 let total_deposit_capacity = QueryIter::new(load_cell_lock, Source::Input)
                     .zip(QueryIter::new(load_cell_capacity, Source::Input))
-                    .filter(|(script, _)| *script.code_hash().raw_data() == DEPOSIT_LOCK_CODE_HASH[..])
+                    .filter(|(script, _)| {
+                        *script.code_hash().raw_data() == DEPOSIT_LOCK_CODE_HASH[..]
+                    })
                     .map(|(_, cap)| cap)
                     .sum();
                 Ok(Self::CollectDeposits {
@@ -134,7 +143,6 @@ impl StateTransition {
                     cap_before: bridge_cap_before,
                     cap_after: bridge_cap_after,
                 })
-                    
             }
             _ => Err(Error::StateTransitionDoesNotExist),
         }
@@ -161,6 +169,7 @@ impl StateTransition {
                 if data.len() != 0 {
                     return Err(Error::DataLengthNotZero);
                 }
+
                 // verify typescript args contains id and validators
                 let type_script_0 = load_cell_type(0, Source::Output)?.unwrap();
                 let type_script_args = type_script_0.args().raw_data();
@@ -175,7 +184,11 @@ impl StateTransition {
 
                 Ok(())
             }
-            Self::CollectDeposits { total, cap_before, cap_after } => {
+            Self::CollectDeposits {
+                total,
+                cap_before,
+                cap_after,
+            } => {
                 if *cap_after != total + cap_before {
                     return Err(Error::DepositCapacityComputedIncorrectly);
                 }
@@ -207,6 +220,10 @@ fn parse_validator_list_from_args(args: &[u8]) -> Result<Vec<Address>, Error> {
         validators.push(slice_to_array_20(&val_args[ix..ix + ADDRESS_LEN]));
     }
     Ok(validators)
+}
+
+fn verify_state_id() -> Result<(), Error> {
+    
 }
 
 fn get_state_id() -> Result<Bytes, Error> {
