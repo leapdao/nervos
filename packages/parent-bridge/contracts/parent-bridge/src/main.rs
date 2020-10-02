@@ -18,7 +18,7 @@ use ckb_std::{
     error::SysError,
     high_level::{
         load_cell_capacity, load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash,
-        load_input_out_point, load_script, load_script_hash, QueryIter,
+        load_input_out_point, load_script, load_script_hash, QueryIter, load_input,
     },
     syscalls::load_witness,
 };
@@ -72,6 +72,7 @@ enum Error {
     TooManyTypeOutputs = 11,
     EmptyValidatorList = 12,
     DepositCapacityComputedIncorrectly = 13,
+    DepositsShouldNotChangeData = 14,
 }
 
 impl From<SysError> for Error {
@@ -98,6 +99,8 @@ enum StateTransition {
         total: u64,
         cap_before: u64,
         cap_after: u64,
+        data_before: Vec<u8>,
+        data_after: Vec<u8>,
     },
 }
 
@@ -138,10 +141,14 @@ impl StateTransition {
                     })
                     .map(|(_, cap)| cap)
                     .sum();
+                let data_before = load_cell_data(0, Source::Input)?;
+                let data_after = load_cell_data(0, Source::Output)?;
                 Ok(Self::CollectDeposits {
                     total: total_deposit_capacity,
                     cap_before: bridge_cap_before,
                     cap_after: bridge_cap_after,
+                    data_before: data_before,
+                    data_after: data_after,
                 })
             }
             _ => Err(Error::StateTransitionDoesNotExist),
@@ -188,9 +195,15 @@ impl StateTransition {
                 total,
                 cap_before,
                 cap_after,
+                data_before,
+                data_after,
             } => {
+                verify_state_id()?;
                 if *cap_after != total + cap_before {
                     return Err(Error::DepositCapacityComputedIncorrectly);
+                }
+                if data_before != data_after {
+                    return Err(Error::DepositsShouldNotChangeData);
                 }
                 Ok(())
             }
@@ -227,6 +240,16 @@ fn get_state_id() -> Result<Bytes, Error> {
     let tx_hash: &[u8] = &*outpoint.tx_hash().raw_data();
     let index: &[u8] = &*outpoint.index().raw_data();
     Ok(Bytes::from([tx_hash, index].concat()))
+}
+
+fn verify_state_id() -> Result<(), Error> {
+    let num_outputs = QueryIter::new(load_input, Source::GroupOutput).count();
+
+    if num_outputs > 1 {
+        return Err(Error::TooManyTypeOutputs);
+    }
+
+    Ok(())
 }
 
 // check there is always only one
