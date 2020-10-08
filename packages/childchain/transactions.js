@@ -10,12 +10,13 @@ let account = web3.eth.accounts.privateKeyToAccount(privateKey);
   //sending rest of the balance to zero address
   let totalBalance = new BN(await web3.eth.getBalance(account.address));
   totalBalance = totalBalance.sub(new BN("21000"));
-  console.log(account.address);
+
   console.log(
     await web3.eth.sendTransaction({
       from: account.address,
       to: bridgeAddress,
       value: totalBalance,
+      gasPrice: web3.utils.toWei(new BN(2), "wei"),
     })
   );
 })();
