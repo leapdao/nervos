@@ -4,11 +4,6 @@
  * This source code is licensed under the Mozilla Public License, version 2,
  * found in the LICENSE file in the root directory of this source tree.
  */
- 
-
-const ethUtil = require('ethereumjs-util');
-const abi = require("ethereumjs-abi");
-
 const Receipt = class Receipt {
   constructor(isLock, userAddress, amount, txHash) {
     this.isLock = isLock;
@@ -27,54 +22,35 @@ const Receipt = class Receipt {
     return new Receipt(false, address, amount, hash, web3);
   }
 
-  getAbiReceipt() {
-    const val = this.web3.eth.abi.encodeParameter(
-      {
-        "Receipt": {
-          "isLock": 'bool',
-          "user": 'address',
-          "amount": 'uint256',
-          "txHash": 'bytes32'
-        }
-      }, {
-        "isLock": this.isLock,
-        "user": this.userAddress,
-        "amount": this.amount,
-        "txHash": this.txHash
-      }
-    );
-    console.log(val);
-    return val;
+  getReceipt() {
+    return {
+      "isLock": this.isLock,
+      "user": this.userAddress,
+      "amount": this.amount,
+      "txHash": this.txHash
+    }
   }
 
-  getAbiSig(privKey) {
-    const sig = this.sign(privKey);
-    return this.web3.eth.abi.encodeParameter(
-      {
-        "Sig": {
-          "v": 'uint8',
-          "r": 'bytes32',
-          "s": 'bytes32'
-        }
-      }, {
-        "v": sig.v,
-        "r": sig.r,
-        "s": sig.s
-      }
-    );
+  getPayload(validatorAddress) 
+  {
+    return [this.getReceipt(), this.sign(validatorAddress)];
   }
 
-  sign(privKey) {
-    let payload = abi.rawEncode(
+
+  // Only use private key during testing. Use public validator address during implementation
+  // const sigHash = await this.web3.eth.personal.sign(web3.utils.keccak256(payload), validatorAddress);
+  // let sig = sigHash.slice(2);
+  // let r = `0x${sig.slice(0, 64)}`;
+  // let s = `0x${sig.slice(64, 128)}`;
+  // let v = this.web3.utils.hexToNumber(`0x${sig.slice(128, 130)}`);
+  sign(validatorAddress) {
+    let payload = web3.eth.abi.encodeParameters(
       ["bool", "address", "uint256", "bytes32"],
       [this.isLock, this.userAddress, this.amount, this.txHash]
     );
-    const sigHash = ethUtil.keccak256(payload);
-    const sig = ethUtil.ecsign(
-      sigHash,
-      Buffer.from(privKey.replace("0x", ""), "hex")
-    );
-    return sig;
+    
+    const sigHash = this.web3.eth.accounts.sign(web3.utils.keccak256(payload), validatorAddress);
+    return { v: sigHash.v, r: sigHash.r, s: sigHash.s };
   }
 }
 
