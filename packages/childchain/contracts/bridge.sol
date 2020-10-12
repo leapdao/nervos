@@ -9,16 +9,18 @@ pragma experimental ABIEncoderV2;
  * For more details, check out the docs in /docs/childchain.md
  */
 contract Bridge {
+  // Created when the smart contract is initially deployed.
+  address public deployer = msg.sender;
 
   /**
-   * @dev Emitted when a validator (`validator`) relays a lock event with a recipient (`to`) 
-   * and amount (`amount`). 
+   * @dev Emitted when a validator (`validator`) relays a lock event with a recipient (`to`)
+   * and amount (`amount`).
    *
    * Note that `value` must NOT be zero.
    */
   event LockSig(bytes32 indexed txHash, address indexed validator, address to, uint256 amount);
   /**
-   * @dev Emitted when a quorum of signatures by validators has been reached. 
+   * @dev Emitted when a quorum of signatures by validators has been reached.
    * Native tokens of amount (`amount`) are transfered to recipient (`receiver`).
    */
   event Mint(address indexed receiver, uint256 value);
@@ -179,7 +181,9 @@ contract Bridge {
    * Emits a {Burn} event.
    */
   function () payable external {
-    emit Burn(msg.sender, msg.value);
+    if(msg.sender != deployer){
+      emit Burn(msg.sender, msg.value);
+    }
   }
 
   /**

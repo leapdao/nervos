@@ -3,7 +3,8 @@
     "ethereumjs-abi": "^0.6.8",
     "ethereumjs-util": "^7.0.4",
     "global": "^4.4.0",
-    "truffle": "^5.1.44"
+    "truffle": "^5.1.44",
+    "web3": "^1.2.11"
   },
   "scripts": {
     "test": "truffle test",

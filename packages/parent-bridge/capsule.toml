@@ -3,3 +3,7 @@ deployment = "deployment.toml"
 [[contracts]]
 name = "parent-bridge"
 template_type = "Rust"
+
+[[contracts]]
+name = "deposit-lock"
+template_type = "Rust"
