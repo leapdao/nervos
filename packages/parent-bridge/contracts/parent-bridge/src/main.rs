@@ -7,6 +7,9 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
 
+mod code_hashes;
+use code_hashes::CODE_HASH_DEPOSIT_LOCK;
+
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
 use alloc::vec::Vec;
@@ -46,11 +49,6 @@ fn entry() -> i8 {
 const ANYONE_CAN_PAY_CODE_HASH: [u8; 32] = [
     230, 131, 176, 65, 57, 52, 71, 104, 52, 132, 153, 194, 62, 177, 50, 109, 90, 82, 214, 219, 0,
     108, 13, 47, 236, 224, 10, 131, 31, 54, 96, 215,
-];
-const DEPOSIT_LOCK_CODE_HASH: [u8; 32] = [
-    0x5c, 0x56, 0x9d, 0xd6, 0x08, 0xb6, 0x74, 0x10, 0x05, 0x9c, 0x50, 0xd4, 0x25, 0x71, 0x80,
-    0xb8, 0x3e, 0x47, 0x99, 0x3b, 0xbd, 0xcc, 0xd4, 0x83, 0x6c, 0xb9, 0x6e, 0xd9, 0xc4, 0x30, 0x51,
-    0x45,
 ];
 
 const ADDRESS_LEN: usize = 20;
@@ -137,7 +135,7 @@ impl StateTransition {
                 let total_deposit_capacity = QueryIter::new(load_cell_lock, Source::Input)
                     .zip(QueryIter::new(load_cell_capacity, Source::Input))
                     .filter(|(script, _)| {
-                        *script.code_hash().raw_data() == DEPOSIT_LOCK_CODE_HASH[..]
+                        *script.code_hash().raw_data() == CODE_HASH_DEPOSIT_LOCK[..]
                     })
                     .map(|(_, cap)| cap)
                     .sum();
