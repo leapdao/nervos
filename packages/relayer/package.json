@@ -1,0 +1,16 @@
+{
+  "name": "bridge",
+  "version": "1.0.0",
+  "description": "framework relayer",
+  "main": "index.js",
+  "author": "LeapDAO",
+  "license": "GPLv3",
+  "devDependencies": {
+    "@tsconfig/recommended": "^1.0.1"
+  },
+  "dependencies": {
+    "redis": "^3.0.2",
+    "rsmq-promise": "^1.0.4",
+    "web3": "^1.3.0"
+  }
+}
