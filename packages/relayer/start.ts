@@ -25,13 +25,11 @@ const startDB = () => {
       quit: promisify(redisClient.quit).bind(redisClient)
     };
   
+    console.log("DB has been connected...");
     return db;
 }
   
-const startQueue = async () => {
-  const qname = Config.address;
-  console.log("This is the quee", qname);
-
+const startQueue = async (qname: string) => {
     const rsmq = new RSMQPromise({
         host: Config.redis.host,
         port: Config.redis.port,
@@ -58,21 +56,23 @@ const startQueue = async () => {
 const startService = async () => {
   let accounts = await web3.eth.getAccounts(); // Needs to be from config
   const db = startDB();
-  const queueRunner = await startQueue();
-
+  
   const contract = new Contract(BridgeContract.abi, Config.address, {
     from: accounts[0],
     gasPrice
   });
+  const evmQueue = await startQueue(Config.address);
+  const evmService = new EvmRelay(evmQueue, db, contract, accounts[0]);
 
-  const evmService = new EvmRelay(queueRunner, db, contract, accounts[0]);
+  // evmService.handle(); // handle relay from ckb
+  // TODO:: move to cron job 30 seconds 
+  evmService.listen(); // listen for contract events 
 
-  evmService.listen(); // listen for contract events
-  evmService.handle(); // handle relay from ckb
-
-  const ckbService = new CkbRelay(queueRunner, accounts[0]);
-  ckbService.listen(); // listen for lock events in bridge contract
-  ckbService.handle(); // handle relay from emv
+  // TODO:: uncomment once connected to lumos functions
+  // const ckbQueue = await startQueue(Config.bridgeHash);
+  // const ckbService = new CkbRelay(ckbQueue, accounts[0]);
+  // ckbService.listen(); // listen for lock events in bridge contract
+  // ckbService.handle(); // handle relay from emv
 }
 
 startService();

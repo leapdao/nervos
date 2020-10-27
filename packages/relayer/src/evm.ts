@@ -10,7 +10,7 @@ class EVMRelay {
     contractInstance: any;
     validatorAddress: string;
     bridgeAddress: string = Config.address;
-    bridgeHash: string = Config.brigdgeHash;
+    bridgeHash: string = Config.bridgeHash;
 
     constructor(queueRunner: any, db: any, contract: any, validator: string) {
         this.db = db;
@@ -21,7 +21,7 @@ class EVMRelay {
 
     async _getDBHeight(): Promise<number> {
         const result = await this.db.get('evm_height');
-        return result.status === "fulfilled" && !result.value ? 0 : parseInt(result.value, 10)
+        return result !== null ? parseInt(result, 10) : 0;
     }
 
     async _getEvmHeight(): Promise<number> {
@@ -63,20 +63,20 @@ class EVMRelay {
             fromBlock: localHeight,
             toBlock: remoteHeight
         }, (error: any, event: any) => {
-            event.forEach((x: any) => {
+                event.forEach((x: any) => {
                 if (x.event === 'Burn') {
                     this._collectUnLock({
                         isLock: false,
-                        user: x.address,
-                        amount: x.returnValues,
+                        user: x.returnValues.sender,
+                        amount: x.returnValues.value,
                         txHash: x.transactionHash
                     });
                 } else if (x.event === 'BurnQuorom') {
                     this._relayUnLock({
-                        user: x.address,
-                        amount: x.returnValues,
-                        txHash: x.transactionHash,
-                        sigs: x.signatures
+                        user: x.returnValues.from,
+                        amount: x.returnValues.amount,
+                        txHash: x.returnValues.txHash,
+                        sigs: x.returnValues.from
                     });
                 }
             });
@@ -99,14 +99,19 @@ class EVMRelay {
     }
     
     async listen() {
+        console.log("Listening on childchain...");
         const localHeight = await this._getDBHeight();
         const remoteHeight = await this._getEvmHeight();
 
-        // console.log("We have this", localHeight, remoteHeight);
+        console.log("Blocks to process are", (remoteHeight - localHeight));
         if ((remoteHeight - localHeight) > 0) {
             await this._processEvents(localHeight, remoteHeight);
             await this.db.set('evm_height', remoteHeight);
         }
+
+        setTimeout(async () => {
+            await this.listen();
+        }, 30000)// listen again after 30 seconds
     }
 
     /**

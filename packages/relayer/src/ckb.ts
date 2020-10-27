@@ -7,7 +7,7 @@ class CKBRelay {
   queueRunner: any;
   validatorAddress: string;
   bridgeAddress: string = Config.address;
-  bridgeHash: string = Config.brigdgeHash;
+  bridgeHash: string = Config.bridgeHash;
 
   constructor(queueRunner: any, validator: string) {
     this.queueRunner = queueRunner;
@@ -41,7 +41,7 @@ class CKBRelay {
     this._relayLock({
       isLock: true,
       user: this.validatorAddress,
-      txHash: 'testTxHash',
+      txHash: "testTxHash",
       amount: web3.utils.toHex('200000000000000000')
     });
   }

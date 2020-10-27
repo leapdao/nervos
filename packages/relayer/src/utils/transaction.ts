@@ -15,6 +15,7 @@ const simulate = async () => {
         const txHash = tx.transactionHash;
         console.log("We have transaction", txHash);
     }
+    process.exit();
 }
 
 simulate();

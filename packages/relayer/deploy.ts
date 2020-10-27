@@ -25,6 +25,7 @@ const deployContract = async () => {
         contractAddress = newContractInstance.options.address;
         const jsonString = JSON.stringify({ address: contractAddress });
         fs.writeFileSync('./address.json', jsonString);
+        process.exit();
     });
 }
 

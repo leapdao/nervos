@@ -4,9 +4,15 @@
   "description": "framework relayer",
   "main": "index.js",
   "author": "LeapDAO",
-  "license": "GPLv3",
+  "scripts": {
+    "deploy": "npx ts-node deploy.ts",
+    "dummy:unlock": "npx ts-node src/utils/transaction.ts",
+    "start": "npx ts-node start.ts"
+  },
   "devDependencies": {
-    "@tsconfig/recommended": "^1.0.1"
+    "@tsconfig/recommended": "^1.0.1",
+    "ts-node": "^9.0.0",
+    "typescript": "^4.0.5"
   },
   "dependencies": {
     "redis": "^3.0.2",
