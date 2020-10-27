@@ -12,6 +12,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "blake2b-rs"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e35e362830ef90ecea16f09b21b75d22d33a8562a679c74ab4f4fa49b4fcb87"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "block-buffer"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -211,6 +220,7 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 name = "parent-bridge"
 version = "0.1.0"
 dependencies = [
+ "blake2b-rs",
  "ckb-std",
  "hex",
  "k256",

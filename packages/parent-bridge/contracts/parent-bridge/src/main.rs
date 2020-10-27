@@ -7,6 +7,9 @@
 // Import from `core` instead of from `std` since we are in no-std mode
 use core::result::Result;
 
+mod code_hashes;
+use code_hashes::CODE_HASH_DEPOSIT_LOCK;
+
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
 use alloc::vec::Vec;
@@ -18,7 +21,7 @@ use ckb_std::{
     error::SysError,
     high_level::{
         load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
-        load_script, load_script_hash, QueryIter, load_transaction, load_cell_capacity
+        load_script, load_script_hash, QueryIter, load_transaction, load_cell_capacity, load_input,
     },
 };
 use k256::{
@@ -63,6 +66,7 @@ enum Error {
     ItemMissing = 2,
     LengthNotEnough = 3,
     Encoding = 4,
+    // Add customized errors here...
     StateTransitionDoesNotExist = 5,
     InvalidArgsEncoding = 6,
     WrongLockScript = 7,
@@ -76,6 +80,8 @@ enum Error {
     InconsistentStateId = 15,
     InvalidPayoutAmount = 16,
     // Add customized errors here...
+    DepositCapacityComputedIncorrectly = 17,
+    DepositsShouldNotChangeData = 18,
 }
 
 impl From<SysError> for Error {
@@ -98,6 +104,13 @@ type Signature = [u8; 65];
 enum StateTransition {
     DeployBridge { validators: Vec<Address>, id: Bytes },
     Payout { validators: Vec<Address>, id: Bytes,  receipt: Receipt, sigs: Vec<Signature>, amount: u128},
+    CollectDeposits {
+        total: u64,
+        cap_before: u64,
+        cap_after: u64,
+        data_before: Vec<u8>,
+        data_after: Vec<u8>,
+    },
 }
 
 fn verify_payout_amount() -> Result<u128, Error> {
@@ -134,7 +147,8 @@ impl StateTransition {
             let my_hash = load_script_hash()?;
             return Ok(QueryIter::new(load_cell_type_hash, Source::Input)
                 .filter(|option| option.map_or(false, |hash| hash == my_hash))
-                .count() == 0);
+                .count()
+                == 0);
         }
 
         let script_args: Bytes = load_script()?.args().raw_data();
@@ -154,10 +168,8 @@ impl StateTransition {
             return Ok(StateTransition::DeployBridge {
                 validators: validators,
                 id: state_id,
-            })
+            });
         }
-
-
         // check capacity
         //let amount: u128 = verify_payout_amount()?;
 
@@ -200,6 +212,26 @@ impl StateTransition {
                 sigs: sigs,
                 amount: amount
             }),
+            1 => {
+                let bridge_cap_before = load_cell_capacity(0, Source::Input)?;
+                let bridge_cap_after = load_cell_capacity(0, Source::Output)?;
+                let total_deposit_capacity = QueryIter::new(load_cell_lock, Source::Input)
+                    .zip(QueryIter::new(load_cell_capacity, Source::Input))
+                    .filter(|(script, _)| {
+                        *script.code_hash().raw_data() == CODE_HASH_DEPOSIT_LOCK[..]
+                    })
+                    .map(|(_, cap)| cap)
+                    .sum();
+                let data_before = load_cell_data(0, Source::Input)?;
+                let data_after = load_cell_data(0, Source::Output)?;
+                Ok(Self::CollectDeposits {
+                    total: total_deposit_capacity,
+                    cap_before: bridge_cap_before,
+                    cap_after: bridge_cap_after,
+                    data_before: data_before,
+                    data_after: data_after,
+                })
+            },
             _ => Err(Error::StateTransitionDoesNotExist),
         }
     }
@@ -222,9 +254,10 @@ impl StateTransition {
                 // data on output0 should be nothing
                 let data = load_cell_data(0, Source::Output)?;
 
-                if !data.len() == 0 {
+                if data.len() != 0 {
                     return Err(Error::DataLengthNotZero);
                 }
+
                 // verify typescript args contains id and validators
                 let type_script_0 = load_cell_type(0, Source::Output)?.unwrap();
                 let type_script_args = type_script_0.args().raw_data();
@@ -256,6 +289,22 @@ impl StateTransition {
                 debug!("Hash2: {:?}", encode(hash));
 
                 debug!("debug: {:?}, id: {:?}, receipt: {:?}, sigs: {:?}, amount: {:?}", validators, id, receipt.len(), sigs.len(), amount);
+                Ok(())
+            }
+            Self::CollectDeposits {
+                total,
+                cap_before,
+                cap_after,
+                data_before,
+                data_after,
+            } => {
+                verify_state_id()?;
+                if *cap_after != total + cap_before {
+                    return Err(Error::DepositCapacityComputedIncorrectly);
+                }
+                if data_before != data_after {
+                    return Err(Error::DepositsShouldNotChangeData);
+                }
                 Ok(())
             }
         }
@@ -291,6 +340,16 @@ fn get_state_id() -> Result<Bytes, Error> {
     let tx_hash: &[u8] = &*outpoint.tx_hash().raw_data();
     let index: &[u8] = &*outpoint.index().raw_data();
     Ok(Bytes::from([tx_hash, index].concat()))
+}
+
+fn verify_state_id() -> Result<(), Error> {
+    let num_outputs = QueryIter::new(load_input, Source::GroupOutput).count();
+
+    if num_outputs > 1 {
+        return Err(Error::TooManyTypeOutputs);
+    }
+
+    Ok(())
 }
 
 // check there is always only one
