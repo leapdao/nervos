@@ -20,11 +20,17 @@ use ckb_std::{
     debug, default_alloc, entry,
     error::SysError,
     high_level::{
-        load_cell_capacity, load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash,
-        load_input_out_point, load_script, load_script_hash, QueryIter, load_input,
+        load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
+        load_script, load_script_hash, QueryIter, load_transaction, load_cell_capacity, load_input,
     },
-    syscalls::load_witness,
 };
+use k256::{
+    ecdsa::{recoverable},
+};
+use sha3::{Digest, Keccak256};
+use hex::encode;
+use hex::FromHex;
+use core::convert::TryFrom;
 
 entry!(entry);
 default_alloc!();
@@ -69,8 +75,12 @@ enum Error {
     WrongStateId = 10,
     TooManyTypeOutputs = 11,
     EmptyValidatorList = 12,
-    DepositCapacityComputedIncorrectly = 13,
-    DepositsShouldNotChangeData = 14,
+    InvalidPayoutAmount = 13,
+    InvalidWitnessEncoding = 14,
+    InconsistentStateId = 15,
+    // Add customized errors here...
+    DepositCapacityComputedIncorrectly = 16,
+    DepositsShouldNotChangeData = 17,
 }
 
 impl From<SysError> for Error {
@@ -87,12 +97,12 @@ impl From<SysError> for Error {
 }
 
 type Address = [u8; ADDRESS_LEN];
+type Receipt = [u8; 128];
+type Signature = [u8; 65];
 
 enum StateTransition {
-    DeployBridge {
-        validators: Vec<Address>,
-        id: Bytes,
-    },
+    DeployBridge { validators: Vec<Address>, id: Bytes },
+    Payout { validators: Vec<Address>, id: Bytes,  receipt: Receipt, sigs: Vec<Signature>, amount: u128},
     CollectDeposits {
         total: u64,
         cap_before: u64,
@@ -101,6 +111,34 @@ enum StateTransition {
         data_after: Vec<u8>,
     },
 }
+
+fn verify_payout_amount() -> Result<u128, Error> {
+    // let mut remainder_capacity: u128 = 0;
+    // let mut payout_capacity: u128 = 0;
+    // let mut inputs_capacity: u128 = 0;
+
+    let remainder_capacity = match load_cell_capacity(0, Source::Output) {
+        Ok(rc) => (rc as u128),
+        Err(err) => return Err(err.into()),
+    };
+
+    let payout_capacity = match load_cell_capacity(0, Source::Output) {
+        Ok(pc) => (pc as u128),
+        Err(err) => return Err(err.into()),
+    };
+    let inputs_capacity = match load_cell_capacity(0, Source::Input) {
+        Ok(ic) => (ic as u128),
+        Err(err) => return Err(err.into()),
+    };
+
+    // TODO: can there be an overflow here? if payout > remainder
+    if inputs_capacity != remainder_capacity - payout_capacity {
+        return Err(Error::InvalidPayoutAmount);
+    };
+
+    Ok(payout_capacity)
+}
+
 
 impl StateTransition {
     fn get() -> Result<Self, Error> {
@@ -112,23 +150,66 @@ impl StateTransition {
                 == 0);
         }
 
-        if is_deploy()? {
-            let script_args: Bytes = load_script()?.args().raw_data();
-            let validators = parse_validator_list_from_args(&*script_args)?;
-            if validators.len() == 0 {
-                return Err(Error::EmptyValidatorList);
-            };
-            let state_id: Bytes = get_state_id()?;
+        let script_args: Bytes = load_script()?.args().raw_data();
+        let validators = parse_validator_list_from_args(&*script_args)?;
+        if validators.len() == 0 {
+            return Err(Error::EmptyValidatorList);
+        };
+        let state_id: Bytes = get_state_id()?;
+        debug!("validators: {:?}", validators);
+
+        // check state ID
+        only_one_output_has_state_id()?;
+
+        let isd = is_deploy()?;
+        debug!("isd: {:?}", isd);
+        if isd {
             return Ok(StateTransition::DeployBridge {
                 validators: validators,
                 id: state_id,
             });
         }
+        // check capacity
+        //let amount: u128 = verify_payout_amount()?;
 
-        let mut wit_buf: [u8; 1] = [0];
-        load_witness(&mut wit_buf, 0, 0, Source::Input)?;
+        let amount: u128 = 0;
+        // load first witness
+        let tx = load_transaction()?;
+        let witness = tx.witnesses().get_unchecked(0);
 
-        match wit_buf[0] {
+
+        // read action byte
+        let action_byte: u8 = (*witness.get_unchecked(0).as_slice())[0];
+
+        // distinguished based on first byte of witness
+        match action_byte {
+            0 => {
+                //check for correct Encoding of Witness
+                if witness.len() >= 194 && (witness.len()-129) % 65 != 0 {
+                    return Err(Error::InvalidWitnessEncoding);
+                }
+                // make receipt our own 💪
+                let mut receipt: [u8; 128] = [0u8; 128];
+                receipt.copy_from_slice(&witness.raw_data().slice(1..129));
+                let mut sigs = Vec::new();
+                //calculate vector length of signatures
+                let signatures_vector_length = (witness.len()-129)/65;
+
+                debug!("vectorLength: {:?}", signatures_vector_length);
+
+                for x in 0..signatures_vector_length {
+                    let mut temp_sig: [u8; 65] = [0u8; 65];
+                    temp_sig.copy_from_slice(&witness.raw_data().slice(129+x*65 .. 129+(x+1)*65));
+                    sigs.push(temp_sig);
+                }
+                Ok(StateTransition::Payout{
+                validators: validators,
+                id: state_id,
+                receipt: receipt,
+                sigs: sigs,
+                amount: amount
+            })
+            },
             1 => {
                 let bridge_cap_before = load_cell_capacity(0, Source::Input)?;
                 let bridge_cap_after = load_cell_capacity(0, Source::Output)?;
@@ -148,7 +229,7 @@ impl StateTransition {
                     data_before: data_before,
                     data_after: data_after,
                 })
-            }
+            },
             _ => Err(Error::StateTransitionDoesNotExist),
         }
     }
@@ -185,8 +266,27 @@ impl StateTransition {
                     return Err(Error::WrongStateId);
                 }
 
-                only_one_output_has_state_id()?;
 
+                Ok(())
+            },
+            Self::Payout { validators, id, receipt, sigs, amount } => {
+                //let mut signerAddrs: = Vec::new();
+                for i in 0..(sigs.len()) {
+                    //let hash = Keccak256::digest(&receipt[..]);
+                    let hash = Keccak256::new().chain(&receipt[..]);
+                    //let signature: = Signature.new(Signature::from(sigs[i].slice(0..64)), sigs[i]);
+                    //let sig: recoverable::Signature = recoverable::Signature::into(&sigs[i][..]);
+                    let sig: recoverable::Signature = recoverable::Signature::try_from(&sigs[i][..]).unwrap();
+                    debug!("Sig: {:?}", sig);
+                    let recovered_key = sig.recover_verify_key_from_digest(hash).unwrap();
+                    debug!("rk: {:?}", recovered_key);
+                    // signerAddrs[i] =
+                    //debug!("key: 0x{:?}", hex::encode(&recovered_key.to_bytes()[0..32]));
+                }
+                let hash = Keccak256::digest(&Bytes::from(Vec::from_hex("00000000000000000000000000000000000000000000000000000000000000011122334411223344112233441122334411223344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2").unwrap()));
+                debug!("Hash2: {:?}", encode(hash));
+
+                debug!("debug: {:?}, id: {:?}, receipt: {:?}, sigs: {:?}, amount: {:?}", validators, id, receipt.len(), sigs.len(), amount);
                 Ok(())
             }
             Self::CollectDeposits {
@@ -252,7 +352,9 @@ fn verify_state_id() -> Result<(), Error> {
 
 // check there is always only one
 fn only_one_output_has_state_id() -> Result<(), Error> {
+    //load currently executed script, in this case Bridge type script
     let my_hash = load_script_hash()?;
+    //check how many times identical script appears in Outputs
     let num = QueryIter::new(load_cell_type_hash, Source::Output)
         .filter(|option| option.map_or(false, |hash| hash == my_hash))
         .count();
