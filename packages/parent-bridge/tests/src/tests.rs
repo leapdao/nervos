@@ -173,12 +173,12 @@ fn test_unlock() {
     let type_script_args = Bytes::from([&*state_id, &*validator_list].concat());
     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
     let contract_out_point = context.deploy_cell(contract_bin);
-    
+
     let bridge_script = context
         .build_script(&contract_out_point, type_script_args)
         .expect("script");
     let bridge_script_dep = CellDep::new_builder().out_point(contract_out_point).build();
-  
+
 
     // trustee address to be added to bridge script args
     let prev_bridge_output = CellOutput::new_builder()
@@ -256,6 +256,24 @@ fn test_unlock() {
 fn test_wrong_validator_list_length() {
     let mut context = Context::default();
     let validator_list = Bytes::from(Vec::from_hex("112233441122411223344112233441122334411223344112233441122334400000000000000000000000011223344556677889900112233445566778899000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
+    // mock funding output
+    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let lock_script = context
+        .build_script(&always_success_out_point, Default::default())
+        .expect("script");
+    let lock_script_dep = CellDep::new_builder()
+        .out_point(always_success_out_point)
+        .build();
+
+    // create input from funding output
+    let input_out_point = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Default::default(),
+    );
+
     let input = CellInput::new_builder()
         .previous_output(input_out_point)
         .build();
@@ -1279,7 +1297,7 @@ fn test_collect_deposit_fiddling_with_data() {
         .witnesses(witnesses.pack())
         .build();
     let tx = context.complete_tx(tx);
-    
+
     // run
     let err = context
         .verify_tx(&tx, MAX_CYCLES)

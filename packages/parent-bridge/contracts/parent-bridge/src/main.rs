@@ -78,10 +78,9 @@ enum Error {
     InvalidPayoutAmount = 13,
     InvalidWitnessEncoding = 14,
     InconsistentStateId = 15,
-    InvalidPayoutAmount = 16,
     // Add customized errors here...
-    DepositCapacityComputedIncorrectly = 17,
-    DepositsShouldNotChangeData = 18,
+    DepositCapacityComputedIncorrectly = 16,
+    DepositsShouldNotChangeData = 17,
 }
 
 impl From<SysError> for Error {
