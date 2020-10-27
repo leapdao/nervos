@@ -854,7 +854,7 @@ fn test_deposit_wrong_scripts() {
 
 #[test]
 fn test_collect_1_deposit() {
-    let validator_list = Bytes::from(Vec::from_hex("1122334411223344112233441122334411223344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
+    let validator_list = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
 
     let mut context = Context::default();
 
@@ -955,7 +955,7 @@ fn test_collect_1_deposit() {
 
 #[test]
 fn test_collect_3_deposits() {
-    let validator_list = Bytes::from(Vec::from_hex("1122334411223344112233441122334411223344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
+    let validator_list = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
 
     let mut context = Context::default();
 
@@ -1080,7 +1080,7 @@ fn test_collect_3_deposits() {
 
 #[test]
 fn test_collect_desposits_invalid_sum() {
-    let validator_list = Bytes::from(Vec::from_hex("1122334411223344112233441122334411223344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
+    let validator_list = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
 
     let mut context = Context::default();
 
@@ -1206,7 +1206,7 @@ fn test_collect_desposits_invalid_sum() {
 
 #[test]
 fn test_collect_deposit_fiddling_with_data() {
-    let validator_list = Bytes::from(Vec::from_hex("1122334411223344112233441122334411223344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
+    let validator_list = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
 
     let mut context = Context::default();
 
