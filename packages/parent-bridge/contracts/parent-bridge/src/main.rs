@@ -177,40 +177,39 @@ impl StateTransition {
         let tx = load_transaction()?;
         let witness = tx.witnesses().get_unchecked(0);
 
-        //check for correct Encoding of Witness
-        if witness.len() >= 194 && (witness.len()-129) % 65 != 0 {
-            return Err(Error::InvalidWitnessEncoding);
-        }
+
         // read action byte
         let action_byte: u8 = (*witness.get_unchecked(0).as_slice())[0];
 
-        // make receipt our own 💪
-        let mut receipt: [u8; 128] = [0u8; 128];
-        receipt.copy_from_slice(&witness.raw_data().slice(1..129));
-        let mut sigs = Vec::new();
-
-
-
-        //calculate vector length of signatures
-        let signatures_vector_length = (witness.len()-129)/65;
-
-        debug!("vectorLength: {:?}", signatures_vector_length);
-
-        for x in 0..signatures_vector_length {
-            let mut temp_sig: [u8; 65] = [0u8; 65];
-            temp_sig.copy_from_slice(&witness.raw_data().slice(129+x*65 .. 129+(x+1)*65));
-            sigs.push(temp_sig);
-        }
-
         // distinguished based on first byte of witness
         match action_byte {
-            0 => Ok(StateTransition::Payout{
+            0 => {
+                //check for correct Encoding of Witness
+                if witness.len() >= 194 && (witness.len()-129) % 65 != 0 {
+                    return Err(Error::InvalidWitnessEncoding);
+                }
+                // make receipt our own 💪
+                let mut receipt: [u8; 128] = [0u8; 128];
+                receipt.copy_from_slice(&witness.raw_data().slice(1..129));
+                let mut sigs = Vec::new();
+                //calculate vector length of signatures
+                let signatures_vector_length = (witness.len()-129)/65;
+
+                debug!("vectorLength: {:?}", signatures_vector_length);
+
+                for x in 0..signatures_vector_length {
+                    let mut temp_sig: [u8; 65] = [0u8; 65];
+                    temp_sig.copy_from_slice(&witness.raw_data().slice(129+x*65 .. 129+(x+1)*65));
+                    sigs.push(temp_sig);
+                }
+                Ok(StateTransition::Payout{
                 validators: validators,
                 id: state_id,
                 receipt: receipt,
                 sigs: sigs,
                 amount: amount
-            }),
+            })
+            },
             1 => {
                 let bridge_cap_before = load_cell_capacity(0, Source::Input)?;
                 let bridge_cap_after = load_cell_capacity(0, Source::Output)?;

@@ -1201,7 +1201,7 @@ fn test_collect_desposits_invalid_sum() {
         .verify_tx(&tx, MAX_CYCLES)
         .unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(13));
+    assert_error_eq!(err, ScriptError::ValidationFailure(16));
 }
 
 #[test]
@@ -1303,5 +1303,5 @@ fn test_collect_deposit_fiddling_with_data() {
         .verify_tx(&tx, MAX_CYCLES)
         .unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(14));
+    assert_error_eq!(err, ScriptError::ValidationFailure(17));
 }
