@@ -198,8 +198,11 @@ fn test_unlock() {
         .previous_output(prev_bridge_outpoint).build();
 
     //witness for first input
-    let signature = Bytes::from(Vec::from_hex("cba350d5537ab7152a8a6eabd5a499a152b24d72494c4002d8438b4b51da68990e659f9abedf191adeecf4db23cc356d4de9f813432c1bdb43724ecac3ec5bd101").unwrap());
-    let receipt = Bytes::from(Vec::from_hex("0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000143e0824e4a966bb7ce6566e48172dde8c00ecad0000000000000000000000000000000000000000000000001bc16d674ec80000bd7751d7743e0c6e79a2a2b27dceaf80148e92e47206ac643a2ad423f20a8f34").unwrap());
+    // values following documentation here: https://github.com/leapdao/nervos/blob/master/docs/childchain.md
+    let receipt = Bytes::from(Vec::from_hex("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000006677889900112233445566778899001122334455000000000000000000000000000000000000000000000000000000000000000a3344112233441122334411223344112233441122334411223344112233441122").unwrap());
+    // the signature has been created from the private key: 0x278a5de700e29faae8e40e366ec5012b5ec63d36ec77e8a2417154cc1d25383f
+    // it has the corresponding public key: 0xfdd57adec3d438ea237fe46b33ee1e016eda6b585c3e27ea66686c2ea535847946393f8145252eea68afe67e287b3ed9b31685ba6c3b00060a73b9b1242d68f7
+    let signature = Bytes::from(Vec::from_hex("1432a626402e14f716905f400d67d0cc611d5d7e5d3cf4495424578ba54d6cbd0a483431592c222444fbd6171873a3ba9580ddf279ae2885e4586d36d9e99c4c01").unwrap());
     let action_byte = Bytes::from(Vec::from_hex("00").unwrap());
     let witness = [action_byte, receipt, signature].concat();
 
@@ -221,10 +224,12 @@ fn test_unlock() {
             .lock(lock_script.clone())
             .type_(Some(bridge_script.clone()).pack())
             .build(),
+        // audit delay output
         //CellOutput::new_builder()
         //    .capacity(10u64.pack())
         //    .lock(audit_delay_lock.clone())
         //    .build(),
+        // change output
         //CellOutput::new_builder()
         //    .capacity(5u64.pack())
         //    .lock(lock_script.clone())
@@ -232,7 +237,7 @@ fn test_unlock() {
     ];
 
     // TODO: differentiate validator from spent transaction hashes in data from first output
-    let outputs_data = vec![Bytes::from(Vec::from_hex("bd7751d7743e0c6e79a2a2b27dceaf80148e92e47206ac643a2ad423f20a8f34").unwrap()),
+    let outputs_data = vec![Bytes::from(Vec::from_hex("49b6ae03aab45b7410ddb73d161e42ba37675f2e3e8f276e1ac2afc3cf1839fe").unwrap()),
     //Bytes::new(), Bytes::new()
     ];
 
