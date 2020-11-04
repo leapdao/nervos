@@ -45,3 +45,8 @@ Now open the test.ts file and replace myConfig with the following (fill in missi
 ```
 
 Now run `npm run run`.
+
+When prompted to sign, in the ckb-cli, run this command:
+```
+util sign-message --recoverable --from-account {your address} --message {the message in the prompt}
+```
