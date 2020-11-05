@@ -1,5 +1,6 @@
 node_modules/
 packages/childchain/node_modules/
+packages/parent-bridge/tests/target/*
 lerna-debug.log*
 npm-debug.log*
 build

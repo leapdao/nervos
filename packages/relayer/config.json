@@ -1,0 +1,8 @@
+{
+    "address":"0xe5cBb4784e2541aF2deDAE945043e67C65C4F123",
+    "bridgeHash": "BridgeScriptHash",
+    "redis": {
+        "host": "localhost",
+        "port": 6379
+    }
+}
