@@ -10,9 +10,10 @@ blake2b-rs = "0.1.5"
 
 [dependencies]
 ckb-std = "0.6.0"
-k256 = { version="0.5.10", default-features = false, features = ["ecdsa"] }
+k256 = { version="0.5.10", default-features = false, features = ["ecdsa", "keccak256"] }
 sha3 = { version="0.9", default-features = false }
 hex = { version = "0.4", default-features = false }
+ecdsa = {version= "0.8.5", default-features = false }
 elliptic-curve = { version = "0.6.6", default-features = false }
 
 [profile.release]

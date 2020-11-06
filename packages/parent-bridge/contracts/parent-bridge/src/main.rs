@@ -12,6 +12,7 @@ use code_hashes::{CODE_HASH_DEPOSIT_LOCK, CODE_HASH_ANYONE_CAN_SPEND};
 
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use ckb_std::{
@@ -25,11 +26,13 @@ use ckb_std::{
         load_cell_lock_hash,
     },
 };
-use k256::{
-    ecdsa::{recoverable},
-};
-use sha3::{Digest, Keccak256};
 use core::convert::TryFrom;
+use ecdsa::signature::Signature as SigTrait;
+use elliptic_curve::sec1::ToEncodedPoint;
+use k256::ecdsa::{recoverable, SigningKey};
+use sha3::{Digest, Keccak256};
+
+use hex::encode;
 
 entry!(entry);
 default_alloc!();
@@ -92,7 +95,6 @@ type Hash = [u8;32];
 type Receipt = [u8; 128];
 type Signature = [u8; 65];
 
-
 enum StateTransition {
     DeployBridge { validators: Vec<Address>, id: Bytes , trustee: Hash},
     Payout {
@@ -150,7 +152,6 @@ impl StateTransition {
         let tx = load_transaction()?;
         let witness = tx.witnesses().get_unchecked(0);
 
-
         // read action byte
         let action_byte: u8 = (*witness.get_unchecked(0).as_slice())[0];
         let bridge_cap_before = load_cell_capacity(0, Source::Input)?;
@@ -163,7 +164,7 @@ impl StateTransition {
             // prepare and call payout
             0 => {
                 //check for correct Encoding of Witness
-                if witness.len() >= 194 && (witness.len()-129) % 65 != 0 {
+                if witness.len() >= 194 && (witness.len() - 129) % 65 != 0 {
                     return Err(Error::InvalidWitnessEncoding);
                 }
                 // make receipt our own 💪
@@ -171,23 +172,25 @@ impl StateTransition {
                 receipt.copy_from_slice(&witness.raw_data().slice(1..129));
                 let mut sigs = Vec::new();
                 //calculate vector length of signatures
-                let signatures_vector_length = (witness.len()-129)/65;
+                let signatures_vector_length = (witness.len() - 129) / 65;
 
                 for x in 0..signatures_vector_length {
                     let mut temp_sig: [u8; 65] = [0u8; 65];
-                    temp_sig.copy_from_slice(&witness.raw_data().slice(129+x*65 .. 129+(x+1)*65));
+                    temp_sig.copy_from_slice(
+                        &witness.raw_data().slice(129 + x * 65..129 + (x + 1) * 65),
+                    );
                     sigs.push(temp_sig);
                 }
-                Ok(StateTransition::Payout{
-                validators: validators,
-                receipt: receipt,
-                sigs: sigs,
-                cap_before: bridge_cap_before,
-                cap_after: bridge_cap_after,
-                data_before: data_before,
-                data_after: data_after,
-            })
-            },
+                Ok(StateTransition::Payout {
+                    validators: validators,
+                    receipt: receipt,
+                    sigs: sigs,
+                    cap_before: bridge_cap_before,
+                    cap_after: bridge_cap_after,
+                    data_before: data_before,
+                    data_after: data_after,
+                })
+            }
             // prepare and call "collect deposits"
             1 => {
                 let total_deposit_capacity = QueryIter::new(load_cell_lock, Source::Input)
@@ -246,9 +249,8 @@ impl StateTransition {
                     return Err(Error::WrongStateId);
                 }
 
-
                 Ok(())
-            },
+            }
             Self::Payout {
                 validators,
                 receipt,
@@ -266,15 +268,25 @@ impl StateTransition {
                 }
                 // recover all signers
                 for i in 0..(sigs.len()) {
-                    let preamble = b"\x19Ethereum Signed Message:\n32";
-                    let hashStruct = Keccak256::new().chain(&[preamble, &hash[..]].concat()[..]);
-                    let sig: recoverable::Signature = recoverable::Signature::try_from(&sigs[i][..]).unwrap();
-                    let recovered_key = sig.recover_verify_key_from_digest(hashStruct).unwrap();
+                    let preamble: &[u8] = b"\x19Ethereum Signed Message:\n128";
+                    let hashStruct = Keccak256::new().chain(&[preamble, &receipt[..]].concat()[..]);
+                    let sig: recoverable::Signature =
+                        recoverable::Signature::try_from(&sigs[i][..]).unwrap();
+                    // let recovered_key = sig.recover_verify_key_from_digest(hashStruct).unwrap();
+                    let recovered_key = sig.recover_verify_key([preamble, &receipt[..]].concat().as_slice()).unwrap();
+                    debug!("receipt: {:?}", encode(&receipt[..]));
+                    debug!("sig: {:?}", encode(sig.as_bytes()));
+                    debug!(
+                        "key: {:?}",
+                        encode(recovered_key.to_encoded_point(false).as_bytes())
+                    );
                     // TODO: find second half of public key, insert into hash
                     // let point = AffinePoint::default();
                     // debug!("point: {:?}",  point.decompress(recovered_key, false).as_bytes());
                     let mut addr: [u8; 20] = [0u8; 20];
-                    addr.copy_from_slice(&Keccak256::digest(&recovered_key.to_bytes()[1..33])[12..]);
+                    addr.copy_from_slice(
+                        &Keccak256::digest(&recovered_key.to_bytes()[1..33])[12..],
+                    );
                     let pos = get_position(addr, validators)?;
                     quorum[pos] = true;
                 }
@@ -291,7 +303,10 @@ impl StateTransition {
                 let mut amount_array: [u8; 8] = [0u8; 8];
                 amount_array.copy_from_slice(&receipt[88..96]);
                 let amount = u64::from_be_bytes(amount_array);
-                debug!("after: {:?}, before: {:?}, amount: {:?}", cap_after, cap_before, amount);
+                debug!(
+                    "after: {:?}, before: {:?}, amount: {:?}",
+                    cap_after, cap_before, amount
+                );
                 if *cap_after != cap_before - amount {
                     return Err(Error::WithdrawalCapacityComputedIncorrectly);
                 }
@@ -360,7 +375,7 @@ fn slice_to_array_20(slice: &[u8]) -> [u8; 20] {
 fn get_position(address: Address, vec: &Vec<Address>) -> Result<usize, Error> {
     for i in 0..vec.len() {
         if address == vec[i] {
-            return Ok(i)
+            return Ok(i);
         }
     }
     return Err(Error::UnknownReceiptSigner); // todo: use proper error
