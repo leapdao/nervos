@@ -12,8 +12,14 @@ const CKB_HASH_PERSONALIZATION: &[u8] = b"ckb-default-hash";
 fn main() {
     let out_path = Path::new("src").join("code_hashes.rs");
     let mut out_file = BufWriter::new(File::create(&out_path).expect("create code_hashes.rs"));
+    
+    write_code_hash("deposit-lock", &mut out_file);
+    write_code_hash("anyone-can-spend", &mut out_file);
+}
 
-    let name = "deposit-lock";
+fn write_code_hash(name: &str, mut out_file: &mut BufWriter<File>) {
+
+    // TODO - make this work both for debug and release
     let path = format!("../../build/debug/{}", name);
 
     let mut buf = [0u8; BUF_SIZE];

@@ -3,7 +3,6 @@
 use core::result::Result;
 
 use ckb_std::{
-    debug,
     high_level::{load_script, load_cell_lock_hash, load_cell_type_hash},
     ckb_types::{bytes::Bytes, prelude::*},
     ckb_constants::Source,

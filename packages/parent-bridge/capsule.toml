@@ -1,11 +1,16 @@
 deployment = "deployment.toml"
 
 [[contracts]]
+name = "anyone-can-spend"
+template_type = "Rust"
+
+[[contracts]]
 name = "deposit-lock"
 template_type = "Rust"
 
 [[contracts]]
 name = "parent-bridge"
 template_type = "Rust"
+
 
 
