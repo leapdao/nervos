@@ -1,6 +1,6 @@
 import { Cell, CellDep, Script, HashType, HexString, utils } from "@ckb-lumos/base";
 import { Indexer, CellCollector } from "@ckb-lumos/indexer";
-import { RPC, validators } from "ckb-js-toolkit";
+import { RPC } from "ckb-js-toolkit";
 import { TransactionSkeletonType, TransactionSkeleton, sealTransaction, createTransactionFromSkeleton } from "@ckb-lumos/helpers";
 import { List } from "immutable";
 import { secp256k1Blake160 } from "@ckb-lumos/common-scripts";
