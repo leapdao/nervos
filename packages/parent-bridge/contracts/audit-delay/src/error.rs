@@ -8,6 +8,9 @@ pub enum Error {
     LengthNotEnough,
     Encoding,
     // Add customized errors here...
+    NotEnoughTimePassed,
+    NotSpentWithOwnerInput,
+    WrongScriptArgsLength,
 }
 
 impl From<SysError> for Error {
