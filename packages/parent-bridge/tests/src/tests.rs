@@ -132,11 +132,9 @@ fn test_deploy() {
 //         .build();
 //     let tx = context.complete_tx(tx);
 
-//     let err = context
-//         .verify_tx(&tx, MAX_CYCLES)
-//         .unwrap_err();
+//     let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
 
-//     assert_error_eq!(err, ScriptError::ValidationFailure(5));
+//     assert_error_eq!(err, ScriptError::ValidationFailure(5).input_lock_script(0));
 // }
 
 #[test]
@@ -312,7 +310,7 @@ fn test_wrong_validator_list_length() {
 
     let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(6));
+    assert_error_eq!(err, ScriptError::ValidationFailure(6).output_type_script(0));
 }
 
 #[test]
@@ -375,7 +373,7 @@ fn test_wrong_lock_script() {
 
     let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(7));
+    assert_error_eq!(err, ScriptError::ValidationFailure(7).output_type_script(0));
 }
 
 #[test]
@@ -444,7 +442,7 @@ fn test_wrong_type_script() {
     let tx = context.complete_tx(tx);
     let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(8));
+    assert_error_eq!(err, ScriptError::ValidationFailure(8).output_type_script(1));
 }
 
 #[test]
@@ -507,7 +505,7 @@ fn test_data_length_not_zero() {
 
     let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(9));
+    assert_error_eq!(err, ScriptError::ValidationFailure(9).output_type_script(0));
 }
 
 #[test]
@@ -571,7 +569,7 @@ fn test_wrong_state_id() {
 
     let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(10));
+    assert_error_eq!(err, ScriptError::ValidationFailure(10).output_type_script(0));
 }
 
 #[test]
@@ -641,7 +639,7 @@ fn test_too_many_type_outputs() {
 
     let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(11));
+    assert_error_eq!(err, ScriptError::ValidationFailure(11).output_type_script(0));
 }
 
 #[test]
@@ -849,7 +847,7 @@ fn test_deposit_wrong_scripts() {
 
     let err = context.verify_tx(&tx, MAX_CYCLES).unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(5));
+    assert_error_eq!(err, ScriptError::ValidationFailure(5).input_lock_script(1));
 }
 
 #[test]
@@ -1201,7 +1199,7 @@ fn test_collect_desposits_invalid_sum() {
         .verify_tx(&tx, MAX_CYCLES)
         .unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(16));
+    assert_error_eq!(err, ScriptError::ValidationFailure(16).input_type_script(0));
 }
 
 #[test]
@@ -1303,7 +1301,7 @@ fn test_collect_deposit_fiddling_with_data() {
         .verify_tx(&tx, MAX_CYCLES)
         .unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(17));
+    assert_error_eq!(err, ScriptError::ValidationFailure(17).input_type_script(0));
 }
 
 #[test]
@@ -1381,7 +1379,7 @@ fn test_not_enough_time_passed() {
         .verify_tx(&tx, MAX_CYCLES)
         .unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(5));
+    assert_error_eq!(err, ScriptError::ValidationFailure(5).input_lock_script(0));
 }
 
 #[test]
@@ -1471,7 +1469,7 @@ fn test_not_spent_with_owner_input() {
         .verify_tx(&tx, MAX_CYCLES)
         .unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(6));
+    assert_error_eq!(err, ScriptError::ValidationFailure(6).input_lock_script(1));
 }
 
 #[test]
@@ -1549,5 +1547,5 @@ fn test_wrong_script_args_length() {
         .verify_tx(&tx, MAX_CYCLES)
         .unwrap_err();
 
-    assert_error_eq!(err, ScriptError::ValidationFailure(7));
+    assert_error_eq!(err, ScriptError::ValidationFailure(7).input_lock_script(0));
 }
