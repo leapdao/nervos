@@ -10,7 +10,8 @@ const MAX_CYCLES: u64 = 100_000_000;
 fn test_deploy() {
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let lock_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -145,7 +146,8 @@ fn test_unlock() {
     let validator_list = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
 
     // mock funding output
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let lock_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -257,7 +259,9 @@ fn test_wrong_validator_list_length() {
     let mut context = Context::default();
     let validator_list = Bytes::from(Vec::from_hex("112233441122411223344112233441122334411223344112233441122334400000000000000000000000011223344556677889900112233445566778899000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
     // mock funding output
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let lock_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -319,7 +323,8 @@ fn test_wrong_validator_list_length() {
 fn test_wrong_lock_script() {
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let lock_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -382,7 +387,8 @@ fn test_wrong_lock_script() {
 fn test_wrong_type_script() {
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let lock_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -451,7 +457,8 @@ fn test_wrong_type_script() {
 fn test_data_length_not_zero() {
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let lock_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -514,7 +521,8 @@ fn test_data_length_not_zero() {
 fn test_wrong_state_id() {
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let lock_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -578,7 +586,8 @@ fn test_wrong_state_id() {
 fn test_too_many_type_outputs() {
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let lock_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -648,7 +657,8 @@ fn test_too_many_type_outputs() {
 fn test_deposit_with_lock() {
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let always_success_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -718,7 +728,8 @@ fn test_deposit_with_lock() {
 fn test_deposit_with_type() {
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let always_success_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -789,7 +800,8 @@ fn test_deposit_with_type() {
 fn test_deposit_wrong_scripts() {
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let always_success_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -858,7 +870,8 @@ fn test_collect_1_deposit() {
 
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let always_success_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -959,7 +972,8 @@ fn test_collect_3_deposits() {
 
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let always_success_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -1084,7 +1098,8 @@ fn test_collect_desposits_invalid_sum() {
 
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let always_success_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
@@ -1210,7 +1225,8 @@ fn test_collect_deposit_fiddling_with_data() {
 
     let mut context = Context::default();
 
-    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
     let always_success_script = context
         .build_script(&always_success_out_point, Default::default())
         .expect("script");

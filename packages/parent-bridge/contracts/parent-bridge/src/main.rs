@@ -8,7 +8,7 @@
 use core::result::Result;
 
 mod code_hashes;
-use code_hashes::CODE_HASH_DEPOSIT_LOCK;
+use code_hashes::{CODE_HASH_DEPOSIT_LOCK, CODE_HASH_ANYONE_CAN_SPEND};
 
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
@@ -43,19 +43,6 @@ fn entry() -> i8 {
         Err(err) => err as i8,
     }
 }
-
-// FROM rfc
-// const ANYONE_CAN_PAY_CODE_HASH : [u8; 32] = [
-//     0x86, 0xa1, 0xc6, 0x98, 0x7a, 0x4a, 0xcb, 0xe1, 0xa8, 0x87, 0xcc, 0xa4, 0xc9, 0xdd,
-//     0x2a, 0xc9, 0xfc, 0xb0, 0x74, 0x05, 0xbb, 0xed, 0xa5, 0x1b, 0x86, 0x1b, 0x18, 0xbb,
-//     0xf7, 0x49, 0x2c, 0x4b
-// ];
-
-// FROM tests
-const ANYONE_CAN_PAY_CODE_HASH: [u8; 32] = [
-    230, 131, 176, 65, 57, 52, 71, 104, 52, 132, 153, 194, 62, 177, 50, 109, 90, 82, 214, 219, 0,
-    108, 13, 47, 236, 224, 10, 131, 31, 54, 96, 215,
-];
 
 const ADDRESS_LEN: usize = 20;
 
@@ -156,13 +143,11 @@ impl StateTransition {
             return Err(Error::EmptyValidatorList);
         };
         let state_id: Bytes = get_state_id()?;
-        debug!("validators: {:?}", validators);
-
+        
         // check state ID
         only_one_output_has_state_id()?;
 
         let isd = is_deploy()?;
-        debug!("isd: {:?}", isd);
         if isd {
             return Ok(StateTransition::DeployBridge {
                 validators: validators,
@@ -194,8 +179,6 @@ impl StateTransition {
                 let mut sigs = Vec::new();
                 //calculate vector length of signatures
                 let signatures_vector_length = (witness.len()-129)/65;
-
-                debug!("vectorLength: {:?}", signatures_vector_length);
 
                 for x in 0..signatures_vector_length {
                     let mut temp_sig: [u8; 65] = [0u8; 65];
@@ -239,7 +222,7 @@ impl StateTransition {
             Self::DeployBridge { validators, id } => {
                 // lock script on output0 should be anyone can spend
                 let lock_code_hash = load_cell_lock(0, Source::Output)?.code_hash().raw_data();
-                if *lock_code_hash != ANYONE_CAN_PAY_CODE_HASH[..] {
+                if *lock_code_hash != CODE_HASH_ANYONE_CAN_SPEND[..] {
                     return Err(Error::WrongLockScript);
                 }
                 // type script on output0 should be our script
@@ -277,9 +260,7 @@ impl StateTransition {
                     //let signature: = Signature.new(Signature::from(sigs[i].slice(0..64)), sigs[i]);
                     //let sig: recoverable::Signature = recoverable::Signature::into(&sigs[i][..]);
                     let sig: recoverable::Signature = recoverable::Signature::try_from(&sigs[i][..]).unwrap();
-                    debug!("Sig: {:?}", sig);
                     let recovered_key = sig.recover_verify_key_from_digest(hash).unwrap();
-                    debug!("rk: {:?}", recovered_key);
                     // signerAddrs[i] =
                     //debug!("key: 0x{:?}", hex::encode(&recovered_key.to_bytes()[0..32]));
                 }

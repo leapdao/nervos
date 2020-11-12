@@ -12,27 +12,39 @@ const myConfig: BridgeConfig = {
   },
   BRIDGE_DEP: {
     out_point: {
-      tx_hash: "0xa3c3d96042f23411186456f53356dc1c522df92a12814d19c322cce39b5be2fd",
+      tx_hash: "0x81e5556f3b067a96b42d3b95df310873721b39af223e002fdc46be10d821cc91",
       index: "0x0",
     },
     dep_type: "code",
   },
   DEPOSIT_DEP: {
     out_point: {
-      tx_hash: "0x30ce0f1f27112b781a1eb5951d4f5fee4bda0478cfdda767341f9fa6cf56f49d",
+      tx_hash: "0xbcd93b454bd9506f0ca041b361e464578372d99f16435518cabf299af461c40f",
+      index: "0x0",
+    },
+    dep_type: "code",
+  },
+  ANYONE_CAN_PAY_DEP: {
+    out_point: {
+      tx_hash: "0x0d8814a94a1f13d52351d7f6c01938f34bcbd99f305e8d18a9ae5f724c0b5eb5",
       index: "0x0",
     },
     dep_type: "code",
   },
   ANYONE_CAN_PAY_SCRIPT: {
-    code_hash: "0xe683b04139344768348499c23eb1326d5a52d6db006c0d2fece00a831f3660d7",
-    hash_type: "type",
+    code_hash: "0x0e95396c13c9f0dfb48fedfe0dd670eaa228fb8fb6f5a82b8b8dfe89c8c1bb37",
+    hash_type: "data",
     args: "0x",
   },
+  // BRIDGE_SCRIPT: {
+  //   code_hash: '0xc3b8602acaf51a50e6eee26328b73358e4b65e0d56cac0978dc297d8e2a6b4ba',
+  //   hash_type: 'data',
+  //   args: '0x0baa39a4bc59c288e286050bcc16914edfe8780ff386512f41812ed3cf67350400000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+  // },
   DEPOSIT_CODE_HASH: "0xd7aa21f5395d0bb03935e88ccd46fd34bd97e1a09944cec3fcb59c340deba6cf",
   SIGHASH_CODE_HASH: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
   ACCOUNT_LOCK_ARGS: "0xa01b3e5d05e2efeb707d3ca0e9fcf9373e87693d",
-  BRIDGE_CODE_HASH: "0xe3aed11ce22c8edd787e5aab2601d6f30e3217961d89b0c01b8083b7fcf3e8dd",
+  BRIDGE_CODE_HASH: "0xc3b8602acaf51a50e6eee26328b73358e4b65e0d56cac0978dc297d8e2a6b4ba",
   RPC: "http://127.0.0.1:8114",
   INDEXER_DATA_PATH: "./indexed-data",
 }
@@ -67,8 +79,18 @@ const sleep = (t: number) => new Promise((resolve) => setTimeout(resolve, t));
 
 async function main() {
   await client.deploy(10000n, 1000000000000n, validators, sign);
+  console.log(client.BRIDGE_SCRIPT);
   await sleep(30000);
+  console.log(await client.getLatestBridgeState());
   await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, sign);
+  await sleep(60000);
+  const depositsBefore = await client.getDeposits();
+  console.log(depositsBefore);
+  await client.collectDeposits(depositsBefore, 10000n, myConfig.ACCOUNT_LOCK_ARGS, sign);
+  await sleep(60000);
+  const depositsAfter = await client.getDeposits();
+  console.log(depositsAfter);
+  console.log(await client.getLatestBridgeState());
 }
 
 main();

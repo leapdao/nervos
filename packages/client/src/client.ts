@@ -1,7 +1,7 @@
 import { Cell, CellDep, Script, HashType, HexString, utils } from "@ckb-lumos/base";
 import { Indexer, CellCollector } from "@ckb-lumos/indexer";
-import { RPC } from "ckb-js-toolkit";
-import { TransactionSkeletonType, TransactionSkeleton, sealTransaction } from "../node_modules/@ckb-lumos/helpers";
+import { RPC, validators } from "ckb-js-toolkit";
+import { TransactionSkeletonType, TransactionSkeleton, sealTransaction, createTransactionFromSkeleton } from "@ckb-lumos/helpers";
 import { List } from "immutable";
 import { secp256k1Blake160 } from "@ckb-lumos/common-scripts";
 import { initializeConfig } from "@ckb-lumos/config-manager";
@@ -10,14 +10,21 @@ interface BridgeConfig {
   SIGHASH_DEP: CellDep,
   BRIDGE_DEP: CellDep,
   DEPOSIT_DEP: CellDep,
+  ANYONE_CAN_PAY_DEP: CellDep,
   ANYONE_CAN_PAY_SCRIPT: Script,
   BRIDGE_SCRIPT?: Script,
   SIGHASH_CODE_HASH: string,
-  ACCOUNT_LOCK_ARGS: string,
   BRIDGE_CODE_HASH: string,
   DEPOSIT_CODE_HASH: string,
+  ACCOUNT_LOCK_ARGS: string,
   RPC: string,
   INDEXER_DATA_PATH: string,
+}
+
+interface BridgeState {
+  stateid: string,
+  validators: Array<string>,
+  capacity: bigint,
 }
 
 const WITNESS_TEMPLATE = "0x55000000100000005500000055000000410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -151,6 +158,107 @@ class BridgeClient {
     const tx = sealTransaction(skeleton, sigs);
     const txHash = await this.rpc.send_transaction(tx);
     return txHash;
+  }
+
+  async collectDeposits(deposits: Array<Cell>, fee: bigint, funderLockArgs: string, sign: (skeleton: TransactionSkeletonType) => Promise<Array<string>>): Promise<string> {
+    const bridgeCell = await this.getLatestBridge();
+    const [feeCells, feeAmount] = await this.collectEnoughCells(funderLockArgs, fee);
+    const inputs = [bridgeCell, ...deposits, ...feeCells];
+
+    const depositAmount = deposits.map(c => BigInt(c.cell_output.capacity)).reduce((acc, cv) => acc + cv, 0n);
+
+    const outputBridgeCell = {
+      data: bridgeCell.data,
+      cell_output: {
+        ...bridgeCell.cell_output,
+        capacity: "0x" + (BigInt(bridgeCell.cell_output.capacity) + depositAmount).toString(16),
+      },
+    };
+    const outputs =
+      feeAmount == fee ?
+        [outputBridgeCell] :
+        [
+          outputBridgeCell,
+          {
+            cell_output: {
+              capacity: "0x" + (feeAmount - fee).toString(16),
+              lock: feeCells[0].cell_output.lock,
+            },
+            data: "0x",
+          }
+        ];
+
+    const deps = [this.CONFIG.DEPOSIT_DEP, this.CONFIG.SIGHASH_DEP, this.CONFIG.BRIDGE_DEP, this.CONFIG.ANYONE_CAN_PAY_DEP];
+    const witnesses = ["0x01", ...Array(deposits.length).fill("0x"), ...Array(feeCells.length).fill(WITNESS_TEMPLATE)];
+
+    let skeleton = this.makeSkeleton(inputs, outputs, deps, witnesses);
+    skeleton = secp256k1Blake160.prepareSigningEntries(skeleton);
+    const sigs = await sign(skeleton);
+    const tx = sealTransaction(skeleton, sigs);
+    const txHash = await this.rpc.send_transaction(tx);
+    return txHash;
+  }
+
+  async getDeposits(): Promise<Array<Cell>> {
+    const collector = new CellCollector(this.indexer, {
+      lock: {
+        code_hash: this.CONFIG.DEPOSIT_CODE_HASH,
+        hash_type: "data",
+        args: "0x",
+      },
+      argsLen: "any",
+    });
+
+    const allCells = [];
+    for await (const cell of collector.collect()) {
+      allCells.push(cell);
+    }
+    return allCells.filter(c => {
+      if (!c.cell_output) return false;
+      if (!this.CONFIG.BRIDGE_SCRIPT) return false;
+      const argsTypeHash = "0x" + c.cell_output.lock.args.slice(66);
+      const bridgeTypeHash = utils.computeScriptHash(this.CONFIG.BRIDGE_SCRIPT);
+      return argsTypeHash == bridgeTypeHash;
+    });
+  }
+
+  async getLatestBridge(): Promise<Cell> {
+    if (!this.BRIDGE_SCRIPT) {
+      throw new Error("Bridge script not set!");
+    }
+
+    const collector = new CellCollector(this.indexer, {
+      type: this.BRIDGE_SCRIPT,
+    });
+
+    const allCells = [];
+    for await (const cell of collector.collect()) {
+      allCells.push(cell);
+    }
+
+    return allCells[0];
+  }
+
+  async getLatestBridgeState(): Promise<BridgeState> {
+    const latestCell = await this.getLatestBridge();
+    if (!latestCell.cell_output) {
+      throw new Error("No cell_output on bridge cell");
+    }
+    if (!latestCell.cell_output.type) {
+      throw new Error("No type script on bridge cell");
+    }
+    const typeArgs = latestCell.cell_output.type.args;
+    const stateid = typeArgs.slice(0, 74);
+    const validatorsString = typeArgs.slice(74);
+    const validators = [];
+    for (let i = 0; i < validatorsString.length / 40; i++) {
+      validators.push("0x" + validatorsString.slice(i * 40, i + 40));
+    }
+    return {
+      stateid: stateid,
+      validators: validators,
+      capacity: BigInt(latestCell.cell_output.capacity),
+    };
   }
 
   private makeSkeleton(inputs: Array<Cell>, outputs: Array<Cell>, deps: Array<CellDep>, witnesses: Array<HexString>): TransactionSkeletonType {
