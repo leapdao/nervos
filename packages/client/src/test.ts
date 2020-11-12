@@ -1,4 +1,8 @@
 import { BridgeClient, BridgeConfig } from "./client";
+import { Script } from "@ckb-lumos/base";
+import { BridgeEventEmitter, BridgeEvent } from "./events";
+import { Indexer } from "@ckb-lumos/indexer";
+import { RPC } from "ckb-js-toolkit";
 import readline from "readline";
 import { TransactionSkeletonType } from "@ckb-lumos/helpers";
 
@@ -36,11 +40,11 @@ const myConfig: BridgeConfig = {
     hash_type: "data",
     args: "0x",
   },
-  // BRIDGE_SCRIPT: {
-  //   code_hash: '0xc3b8602acaf51a50e6eee26328b73358e4b65e0d56cac0978dc297d8e2a6b4ba',
-  //   hash_type: 'data',
-  //   args: '0x0baa39a4bc59c288e286050bcc16914edfe8780ff386512f41812ed3cf67350400000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
-  // },
+  BRIDGE_SCRIPT: {
+    code_hash: '0xc3b8602acaf51a50e6eee26328b73358e4b65e0d56cac0978dc297d8e2a6b4ba',
+    hash_type: 'data',
+    args: '0x0baa39a4bc59c288e286050bcc16914edfe8780ff386512f41812ed3cf67350400000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+  },
   DEPOSIT_CODE_HASH: "0xd7aa21f5395d0bb03935e88ccd46fd34bd97e1a09944cec3fcb59c340deba6cf",
   SIGHASH_CODE_HASH: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
   ACCOUNT_LOCK_ARGS: "0xa01b3e5d05e2efeb707d3ca0e9fcf9373e87693d",
@@ -49,7 +53,12 @@ const myConfig: BridgeConfig = {
   INDEXER_DATA_PATH: "./indexed-data",
 }
 
-const client = new BridgeClient(myConfig);
+const rpc = new RPC(myConfig.RPC);
+const indexer = new Indexer(myConfig.RPC, myConfig.INDEXER_DATA_PATH);
+const client = new BridgeClient(myConfig, indexer, rpc);
+const emitter = new BridgeEventEmitter(myConfig.BRIDGE_SCRIPT as Script, myConfig, indexer, rpc);
+emitter.subscribe((e: BridgeEvent) => { });
+emitter.start();
 
 const sign = async (skeleton: TransactionSkeletonType): Promise<Array<string>> => {
   const signOne = (entry: { type: string; index: number; message: string }): Promise<string> => {
@@ -76,11 +85,10 @@ const sign = async (skeleton: TransactionSkeletonType): Promise<Array<string>> =
 const validators: Array<string> = ["0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"];
 const sleep = (t: number) => new Promise((resolve) => setTimeout(resolve, t));
 
-
 async function main() {
-  await client.deploy(10000n, 1000000000000n, validators, sign);
-  console.log(client.BRIDGE_SCRIPT);
-  await sleep(30000);
+  // await client.deploy(10000n, 1000000000000n, validators, sign);
+  // console.log(client.BRIDGE_SCRIPT);
+  // await sleep(30000);
   console.log(await client.getLatestBridgeState());
   await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, sign);
   await sleep(60000);

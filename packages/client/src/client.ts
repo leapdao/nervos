@@ -35,10 +35,10 @@ class BridgeClient {
   rpc: RPC;
   BRIDGE_SCRIPT?: Script;
 
-  constructor(config: BridgeConfig) {
+  constructor(config: BridgeConfig, indexer: Indexer, rpc: RPC) {
     this.CONFIG = config;
-    this.indexer = new Indexer(this.CONFIG.RPC, this.CONFIG.INDEXER_DATA_PATH);
-    this.rpc = new RPC(this.CONFIG.RPC);
+    this.indexer = indexer;
+    this.rpc = rpc;
     this.BRIDGE_SCRIPT = this.CONFIG.BRIDGE_SCRIPT;
 
     initializeConfig();
