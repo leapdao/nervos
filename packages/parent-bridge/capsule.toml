@@ -12,5 +12,9 @@ template_type = "Rust"
 name = "parent-bridge"
 template_type = "Rust"
 
+[[contracts]]
+name = "audit-delay"
+template_type = "Rust"
+
 
 
