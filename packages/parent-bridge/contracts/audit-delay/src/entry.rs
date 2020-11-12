@@ -35,14 +35,11 @@ pub fn main() -> Result<(), Error> {
 
     let input_header = load_header(0, Source::GroupInput)?;
     let input_header_timestamp = input_header.raw().timestamp().unpack();
-    debug!("{:?}", input_header_timestamp);
     let proof_header = load_header(1, Source::HeaderDep)?;
     let proof_header_timestamp = proof_header.raw().timestamp().unpack();
-    debug!("{:?}", proof_header_timestamp);
     let timeout = args.slice(64..72);
     let timeout_array: [u8; 8] = (&*timeout).try_into().unwrap();
     let timeout_num = u64::from_be_bytes(timeout_array);
-    debug!("{:?}", timeout_num);
     
     if proof_header_timestamp - input_header_timestamp < timeout_num {
         return Err(Error::NotEnoughTimePassed);
