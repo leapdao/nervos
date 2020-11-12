@@ -1377,11 +1377,11 @@ fn test_not_enough_time_passed() {
         .build();
     let tx = context.complete_tx(tx);
 
-    // run
-    let cycles = context
+    let err = context
         .verify_tx(&tx, MAX_CYCLES)
-        .expect_err("fail verification");
-    println!("consume cycles: {}", cycles);
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(5));
 }
 
 #[test]
@@ -1467,11 +1467,11 @@ fn test_not_spent_with_owner_input() {
         .build();
     let tx = context.complete_tx(tx);
 
-    // run
-    let cycles = context
+    let err = context
         .verify_tx(&tx, MAX_CYCLES)
-        .expect_err("fail verification");
-    println!("consume cycles: {}", cycles);
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(6));
 }
 
 #[test]
@@ -1545,9 +1545,9 @@ fn test_wrong_script_args_length() {
         .build();
     let tx = context.complete_tx(tx);
 
-    // run
-    let cycles = context
+    let err = context
         .verify_tx(&tx, MAX_CYCLES)
-        .expect_err("fail verification");
-    println!("consume cycles: {}", cycles);
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(7));
 }
