@@ -111,6 +111,11 @@ class BridgeClient {
     const sigs = await sign(skeleton);
     const tx = sealTransaction(skeleton, sigs);
     const txHash = await this.rpc.send_transaction(tx);
+
+    // this feels very hackish
+    this.eventEmitter.bridgeScript = bridgeScript;
+    this.eventEmitter.start();
+
     const subscriber = await this.awaitTransaction(txHash);
     this.eventEmitter.unsubscribe(subscriber);
 
@@ -225,9 +230,9 @@ class BridgeClient {
     }
     return allCells.filter(c => {
       if (!c.cell_output) return false;
-      if (!this.CONFIG.BRIDGE_SCRIPT) return false;
+      if (!this.BRIDGE_SCRIPT) return false;
       const argsTypeHash = "0x" + c.cell_output.lock.args.slice(66);
-      const bridgeTypeHash = utils.computeScriptHash(this.CONFIG.BRIDGE_SCRIPT);
+      const bridgeTypeHash = utils.computeScriptHash(this.BRIDGE_SCRIPT);
       return argsTypeHash == bridgeTypeHash;
     });
   }

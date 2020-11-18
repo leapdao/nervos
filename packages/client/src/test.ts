@@ -17,21 +17,21 @@ const myConfig: BridgeConfig = {
   },
   BRIDGE_DEP: {
     out_point: {
-      tx_hash: "0x5632558fda230b41743cf75d11584c88b9ccf6d1386c26ac5a73029dbdb6f8c4",
+      tx_hash: "0xd112a85007bc9738b367d3252e5137838d118aa4f26f23eb9cfb65b89aef38bc",
       index: "0x0",
     },
     dep_type: "code",
   },
   DEPOSIT_DEP: {
     out_point: {
-      tx_hash: "0xe9d5c799e5976a604cca8818dfe7686bab6a3e1352a2b06d94ac5917f6cc932d",
+      tx_hash: "0x620ef79089cbdcef8007c64cad92189594c724787378c8771306b00ed386d920",
       index: "0x0",
     },
     dep_type: "code",
   },
   ANYONE_CAN_PAY_DEP: {
     out_point: {
-      tx_hash: "0x44a4bfcc46452889bc524b9dd8057f7232cb82f0d77a088248504299ef97fdb4",
+      tx_hash: "0x30bc9ebdbbdec0f08523c50b4d6ee4d189e1dfb9ee605e635b7d431f2455bc60",
       index: "0x0",
     },
     dep_type: "code",
@@ -41,11 +41,11 @@ const myConfig: BridgeConfig = {
     hash_type: "data",
     args: "0x",
   },
-  BRIDGE_SCRIPT: {
-    code_hash: '0xc3b8602acaf51a50e6eee26328b73358e4b65e0d56cac0978dc297d8e2a6b4ba',
-    hash_type: 'data',
-    args: '0x4b45e761b61f887053c417cac7ae7262455385f891007dd08233f4efd7abdc7f00000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
-  },
+  // BRIDGE_SCRIPT: {
+  //   code_hash: '0xc3b8602acaf51a50e6eee26328b73358e4b65e0d56cac0978dc297d8e2a6b4ba',
+  //   hash_type: 'data',
+  //   args: '0x4b45e761b61f887053c417cac7ae7262455385f891007dd08233f4efd7abdc7f00000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+  // },
   DEPOSIT_CODE_HASH: "0xd7aa21f5395d0bb03935e88ccd46fd34bd97e1a09944cec3fcb59c340deba6cf",
   SIGHASH_CODE_HASH: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
   ACCOUNT_LOCK_ARGS: "0xa01b3e5d05e2efeb707d3ca0e9fcf9373e87693d",
@@ -59,7 +59,7 @@ const indexer = new Indexer(myConfig.RPC, myConfig.INDEXER_DATA_PATH);
 const emitter = new BridgeEventEmitter(myConfig.BRIDGE_SCRIPT as Script, myConfig, indexer, rpc);
 const client = new BridgeClient(myConfig, indexer, rpc, emitter);
 emitter.subscribe((e: BridgeEvent) => { console.log("EVENT!!!!!"); console.log(e) });
-emitter.start();
+// emitter.start();
 
 const sign = async (skeleton: TransactionSkeletonType): Promise<Array<string>> => {
   const signOne = (entry: { type: string; index: number; message: string }): Promise<string> => {
@@ -87,13 +87,12 @@ const validators: Array<string> = ["0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"]
 const sleep = (t: number) => new Promise((resolve) => setTimeout(resolve, t));
 
 async function main() {
-  // await client.deploy(10000n, 1000000000000n, validators, sign);
-  // console.log(client.BRIDGE_SCRIPT);
-  // await sleep(30000);
+  await client.deploy(10000n, 1000000000000n, validators, sign);
+  console.log(client.BRIDGE_SCRIPT);
   console.log(await client.getLatestBridgeState());
   await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, sign);
-  // await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, sign);
-  // await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, sign);
+  await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 2000000000000n, 10000n, sign);
+  await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 3000000000000n, 10000n, sign);
   const depositsBefore = await client.getDeposits();
   console.log(depositsBefore);
   await client.collectDeposits(depositsBefore, 10000n, myConfig.ACCOUNT_LOCK_ARGS, sign);

@@ -48,7 +48,7 @@ class BridgeEventEmitter {
   private rpc: RPC;
   private indexer: Indexer;
   lastSeenBlock: string;
-  readonly bridgeScript: Script;
+  bridgeScript: Script;
   readonly config: BridgeConfig;
   halt: boolean;
   readonly refreshInterval: number;
