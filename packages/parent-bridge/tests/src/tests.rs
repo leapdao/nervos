@@ -153,6 +153,7 @@ fn test_unlock() {
     let lock_script_dep = CellDep::new_builder()
         .out_point(always_success_out_point)
         .build();
+
     // create input from funding output
     let input_out_point = context.create_cell(
         CellOutput::new_builder()
@@ -164,8 +165,8 @@ fn test_unlock() {
     let second_input = CellInput::new_builder()
         .previous_output(input_out_point)
         .build();
-    // mock previous bridge output
 
+    // mock previous bridge output
     let tx_hash: &[u8] = &*second_input.previous_output().tx_hash().raw_data();
     let index: &[u8] = &*second_input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
@@ -181,19 +182,17 @@ fn test_unlock() {
         .expect("script");
     let bridge_script_dep = CellDep::new_builder().out_point(contract_out_point).build();
 
-
-    // trustee address to be added to bridge script args
+    // creat input from bridge output
+    // todo: trustee address to be added to bridge script args
     let prev_bridge_output = CellOutput::new_builder()
         .capacity(100u64.pack())
         .lock(lock_script.clone())
         .type_(Some(bridge_script.clone()).pack())
         .build();
-
     let prev_bridge_outpoint = context.create_cell(
         prev_bridge_output,
         Bytes::new()
     );
-
     let first_input = CellInput::new_builder()
         .previous_output(prev_bridge_outpoint).build();
 
@@ -208,8 +207,8 @@ fn test_unlock() {
 
     // empty witness for second input
     let witnesses = vec![Bytes::from(witness),
-     //Bytes::new(), Bytes::new()
-     ];
+        Bytes::new(), Bytes::new()
+    ];
 
     let recipient = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
     // TODO: actually use audit delay script
@@ -224,22 +223,20 @@ fn test_unlock() {
             .lock(lock_script.clone())
             .type_(Some(bridge_script.clone()).pack())
             .build(),
-        // audit delay output
-        //CellOutput::new_builder()
-        //    .capacity(10u64.pack())
-        //    .lock(audit_delay_lock.clone())
-        //    .build(),
+        // payment output
+-       CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(audit_delay_lock.clone())
+-           .build(),
         // change output
-        //CellOutput::new_builder()
-        //    .capacity(5u64.pack())
-        //    .lock(lock_script.clone())
-        //    .build()
+        CellOutput::new_builder()
+           .capacity(8u64.pack())
+           .lock(lock_script.clone())
+           .build()
     ];
 
     // TODO: differentiate validator from spent transaction hashes in data from first output
-    let outputs_data = vec![Bytes::from(Vec::from_hex("49b6ae03aab45b7410ddb73d161e42ba37675f2e3e8f276e1ac2afc3cf1839fe").unwrap()),
-    //Bytes::new(), Bytes::new()
-    ];
+    let outputs_data = vec![Bytes::from(Vec::from_hex("49b6ae03aab45b7410ddb73d161e42ba37675f2e3e8f276e1ac2afc3cf1839fe").unwrap()), Bytes::new(), Bytes::new()];
 
     // build transaction
     let tx = TransactionBuilder::default()
@@ -256,8 +253,8 @@ fn test_unlock() {
     let cycles = context
         .verify_tx(&tx, MAX_CYCLES)
         .expect("pass verification");
-    println!("consume cycles: {}", cycles);
 }
+
 
 #[test]
 fn test_wrong_validator_list_length() {

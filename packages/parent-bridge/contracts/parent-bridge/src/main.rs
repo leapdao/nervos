@@ -75,6 +75,8 @@ enum Error {
     UnknownReceiptSigner = 21,
     SignatureQuorumNotMet = 22,
     WithdrawalCapacityComputedIncorrectly = 23
+    WithdrawalHashAlreadyUsed = 24,
+    InvalidWithdrawalCapacity = 25,
 }
 
 impl From<SysError> for Error {
@@ -272,20 +274,10 @@ impl StateTransition {
                     let hashStruct = Keccak256::new().chain(&[preamble, &receipt[..]].concat()[..]);
                     let sig: recoverable::Signature =
                         recoverable::Signature::try_from(&sigs[i][..]).unwrap();
-                    // let recovered_key = sig.recover_verify_key_from_digest(hashStruct).unwrap();
                     let recovered_key = sig.recover_verify_key([preamble, &receipt[..]].concat().as_slice()).unwrap();
-                    debug!("receipt: {:?}", encode(&receipt[..]));
-                    debug!("sig: {:?}", encode(sig.as_bytes()));
-                    debug!(
-                        "key: {:?}",
-                        encode(recovered_key.to_encoded_point(false).as_bytes())
-                    );
-                    // TODO: find second half of public key, insert into hash
-                    // let point = AffinePoint::default();
-                    // debug!("point: {:?}",  point.decompress(recovered_key, false).as_bytes());
                     let mut addr: [u8; 20] = [0u8; 20];
                     addr.copy_from_slice(
-                        &Keccak256::digest(&recovered_key.to_bytes()[1..33])[12..],
+                        &Keccak256::digest(&recovered_key.to_encoded_point(false).as_bytes()[1..65])[12..],
                     );
                     let pos = get_position(addr, validators)?;
                     quorum[pos] = true;
@@ -300,20 +292,29 @@ impl StateTransition {
                 if sigCount < validators.len() * 2 / 3 {
                     return Err(Error::SignatureQuorumNotMet);
                 }
+                // check capacity
                 let mut amount_array: [u8; 8] = [0u8; 8];
                 amount_array.copy_from_slice(&receipt[88..96]);
                 let amount = u64::from_be_bytes(amount_array);
-                debug!(
-                    "after: {:?}, before: {:?}, amount: {:?}",
-                    cap_after, cap_before, amount
-                );
                 if *cap_after != cap_before - amount {
                     return Err(Error::WithdrawalCapacityComputedIncorrectly);
                 }
-                // todo: check that hash not in cluded in data_before
+                // check payout output
+                let payout_cap = load_cell_capacity(1, Source::Output)?;
+                if payout_cap != amount {
+                    return Err(Error::InvalidWithdrawalCapacity);
+                }
+                let lock_code_hash = load_cell_lock(1, Source::Output)?.code_hash().raw_data();
+                // todo: this should be SECP256K1_BLAKE160_SIGHASH instead
+                if *lock_code_hash != CODE_HASH_ANYONE_CAN_SPEND[..] {
+                    return Err(Error::WrongLockScript);
+                }
+                let lock_args = load_cell_lock(1, Source::Output)?.args().raw_data();
+                
+                // todo: check that hash not included in data_before
                 let expected_data = [data_before, &hash[..]].concat();
                 if data_after != &expected_data {
-                    return Err(Error::DepositsShouldNotChangeData);
+                    return Err(Error::WithdrawalHashAlreadyUsed);
                 }
                 Ok(())
             }
