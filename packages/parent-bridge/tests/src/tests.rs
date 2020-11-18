@@ -151,7 +151,7 @@ fn test_unlock() {
         .build_script(&always_success_out_point, Default::default())
         .expect("script");
     let lock_script_dep = CellDep::new_builder()
-        .out_point(always_success_out_point)
+        .out_point(always_success_out_point.clone())
         .build();
 
     // create input from funding output
@@ -215,8 +215,12 @@ fn test_unlock() {
     let contract_bin: Bytes = Loader::default().load_binary("audit-delay");
     let contract_out_point = context.deploy_cell(contract_bin);
 
-    let lock_script_hash = lock_script.calc_script_hash().raw_data();
-    let audit_delay_lock_args: Bytes = Bytes::from([&*lock_script_hash, &[0; 12], &*recipient, &100u64.to_be_bytes()].concat());
+    let trustee_lock_script_hash = lock_script.calc_script_hash().raw_data();
+    let owner_lock_script = context
+      .build_script(&always_success_out_point, recipient)
+      .expect("script");
+    let owner_lock_script_hash = owner_lock_script.calc_script_hash().raw_data();
+    let audit_delay_lock_args: Bytes = Bytes::from([&*trustee_lock_script_hash, &*owner_lock_script_hash, &100u64.to_be_bytes()].concat());
 
     let audit_delay_script = context
         .build_script(&contract_out_point, audit_delay_lock_args)
