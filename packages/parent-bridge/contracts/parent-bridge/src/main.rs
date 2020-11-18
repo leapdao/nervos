@@ -310,7 +310,8 @@ impl StateTransition {
                 let _trustee_lock_hash = lock_args.slice(0..32);
                 // todo: check trustee_lock_hash
                 let _owner_lock_hash = lock_args.slice(32..64);
-                // todo: check owner_lock_hash
+                // todo: check owner_lock_hash agains &receipt[44..64]
+                // for that we need to hash the lock script with blake 🤷‍♂️
                 let _timeout = lock_args.slice(64..72);
                 // todo: check timout
 
