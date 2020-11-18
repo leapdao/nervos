@@ -1,3 +1,4 @@
+
 import { BridgeClient, BridgeConfig } from "./client";
 import { Script } from "@ckb-lumos/base";
 import { BridgeEventEmitter, BridgeEvent } from "./events";
@@ -16,21 +17,21 @@ const myConfig: BridgeConfig = {
   },
   BRIDGE_DEP: {
     out_point: {
-      tx_hash: "0x81e5556f3b067a96b42d3b95df310873721b39af223e002fdc46be10d821cc91",
+      tx_hash: "0x5632558fda230b41743cf75d11584c88b9ccf6d1386c26ac5a73029dbdb6f8c4",
       index: "0x0",
     },
     dep_type: "code",
   },
   DEPOSIT_DEP: {
     out_point: {
-      tx_hash: "0xbcd93b454bd9506f0ca041b361e464578372d99f16435518cabf299af461c40f",
+      tx_hash: "0xe9d5c799e5976a604cca8818dfe7686bab6a3e1352a2b06d94ac5917f6cc932d",
       index: "0x0",
     },
     dep_type: "code",
   },
   ANYONE_CAN_PAY_DEP: {
     out_point: {
-      tx_hash: "0x0d8814a94a1f13d52351d7f6c01938f34bcbd99f305e8d18a9ae5f724c0b5eb5",
+      tx_hash: "0x44a4bfcc46452889bc524b9dd8057f7232cb82f0d77a088248504299ef97fdb4",
       index: "0x0",
     },
     dep_type: "code",
@@ -43,7 +44,7 @@ const myConfig: BridgeConfig = {
   BRIDGE_SCRIPT: {
     code_hash: '0xc3b8602acaf51a50e6eee26328b73358e4b65e0d56cac0978dc297d8e2a6b4ba',
     hash_type: 'data',
-    args: '0x0baa39a4bc59c288e286050bcc16914edfe8780ff386512f41812ed3cf67350400000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+    args: '0x4b45e761b61f887053c417cac7ae7262455385f891007dd08233f4efd7abdc7f00000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
   },
   DEPOSIT_CODE_HASH: "0xd7aa21f5395d0bb03935e88ccd46fd34bd97e1a09944cec3fcb59c340deba6cf",
   SIGHASH_CODE_HASH: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
@@ -55,9 +56,9 @@ const myConfig: BridgeConfig = {
 
 const rpc = new RPC(myConfig.RPC);
 const indexer = new Indexer(myConfig.RPC, myConfig.INDEXER_DATA_PATH);
-const client = new BridgeClient(myConfig, indexer, rpc);
 const emitter = new BridgeEventEmitter(myConfig.BRIDGE_SCRIPT as Script, myConfig, indexer, rpc);
-emitter.subscribe((e: BridgeEvent) => { });
+const client = new BridgeClient(myConfig, indexer, rpc, emitter);
+emitter.subscribe((e: BridgeEvent) => { console.log("EVENT!!!!!"); console.log(e) });
 emitter.start();
 
 const sign = async (skeleton: TransactionSkeletonType): Promise<Array<string>> => {
@@ -91,11 +92,11 @@ async function main() {
   // await sleep(30000);
   console.log(await client.getLatestBridgeState());
   await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, sign);
-  await sleep(60000);
+  // await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, sign);
+  // await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, sign);
   const depositsBefore = await client.getDeposits();
   console.log(depositsBefore);
   await client.collectDeposits(depositsBefore, 10000n, myConfig.ACCOUNT_LOCK_ARGS, sign);
-  await sleep(60000);
   const depositsAfter = await client.getDeposits();
   console.log(depositsAfter);
   console.log(await client.getLatestBridgeState());

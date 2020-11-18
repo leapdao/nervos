@@ -1,29 +1,50 @@
 import { Indexer, TransactionCollector } from "@ckb-lumos/indexer";
-import { Cell, CellDep, Script, HashType, HexString, utils, Transaction } from "@ckb-lumos/base";
+import { Output, OutPoint, Script, Transaction, Cell, utils } from "@ckb-lumos/base";
 import { RPC } from "ckb-js-toolkit";
 import { BridgeConfig } from './client';
 
 type NewDeposit = {
   kind: "new_deposit",
+  amount: BigInt,
+  depositor: string,
 }
 
 type DepositsCollected = {
   kind: "deposits_collected",
+  deposits: Array<{
+    depositor: string,
+    amount: BigInt,
+  }>,
+}
+
+type BridgeDeployed = {
+  kind: "bridge_deployed",
+  initialCapacity: BigInt,
 }
 
 type BridgeEvent = {
   txHash: string,
-  event: NewDeposit | DepositsCollected,
+  event: NewDeposit | DepositsCollected | BridgeDeployed,
 }
 
 type Subscriber = (event: BridgeEvent) => void;
+
+type DetailedTx = {
+  blockNumber: number,
+  transaction: Transaction,
+  tx_status: {
+    block_hash: string,
+    status: "pending" | "proposed" | "commited",
+  },
+}
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 class BridgeEventEmitter {
-  private subscribers: Array<Subscriber>;
+  // make this private maybe
+  subscribers: Array<Subscriber>;
   private rpc: RPC;
   private indexer: Indexer;
   lastSeenBlock: string;
@@ -65,42 +86,45 @@ class BridgeEventEmitter {
       });
 
       let depositTxs = [];
-      const bridgeTxs = [];
+      let bridgeTxs = [];
       for await (const tx of depositsCollector.collect()) {
         depositTxs.push(tx);
       }
       for await (const tx of bridgeCollector.collect()) {
         bridgeTxs.push(tx);
       }
-
-      // return allCells.filter(c => {
-      //   if (!c.cell_output) return false;
-      //   if (!this.CONFIG.BRIDGE_SCRIPT) return false;
-      //   const argsTypeHash = "0x" + c.cell_output.lock.args.slice(66);
-      //   const bridgeTypeHash = utils.computeScriptHash(this.CONFIG.BRIDGE_SCRIPT);
-      //   return argsTypeHash == bridgeTypeHash;
-      // });
       // filter deposits not meant for our bridge
-      const depositsWithInputs = await Promise.all(depositTxs.map((tx => {
-        return (async () => {
-          const outpoints = ((tx as any).transaction as Transaction).inputs;
-          const inputs = await Promise.all(outpoints.map(outpoint => this.rpc.get_live_cell(outpoint.previous_output, false)));
-          return {
-            ...tx,
-            transaction: {
-              ...(tx as any).transaction,
-              inputs: inputs,
-            },
-          }
-        })();
-      })));
-      depositTxs = depositsWithInputs.filter(t => {
-        const tx = (t as any).transaction as Transaction;
-        const { inputs, outputs } = tx;
-        console.log("inputs", inputs);
-        console.log("outputs", outputs);
-        return true;
+      const outpointToCell = async (outpoint: OutPoint): Promise<Cell> => {
+        const tx = (await this.rpc.get_transaction(outpoint.tx_hash)).transaction
+        return tx.outputs[parseInt(outpoint.index, 16)];
+      };
+      const dereferenceOutpoints = async (txs: Array<{ transaction: Transaction }>) => {
+        return await Promise.all(txs.map((tx => {
+          return (async () => {
+            const outpoints = (tx.transaction as Transaction).inputs;
+            const inputs = await Promise.all(outpoints.map(o => outpointToCell(o.previous_output)));
+            return {
+              ...tx,
+              transaction: {
+                ...(tx as any).transaction,
+                inputs: inputs,
+              },
+            }
+          })();
+        })));
+      }
+      const depositsWithInputs = await dereferenceOutpoints(depositTxs as any);
+      depositTxs = depositsWithInputs.filter((t: any) => {
+        const { inputs, outputs } = t.transaction;
+        const cellIsADepositToOurBridge = (c: any) => {
+          if (!(c.lock.code_hash == this.config.DEPOSIT_CODE_HASH)) return false;
+          const argsTypeHash = "0x" + c.lock.args.slice(66);
+          const bridgeTypeHash = utils.computeScriptHash(this.bridgeScript);
+          return argsTypeHash == bridgeTypeHash;
+        };
+        return inputs.some(cellIsADepositToOurBridge) || outputs.some(cellIsADepositToOurBridge);
       });
+      bridgeTxs = await dereferenceOutpoints(bridgeTxs as any);
 
       // join and remove duplicates
       const allTxs = Object.values([...depositTxs, ...bridgeTxs].reduce((acc, tx) => {
@@ -109,11 +133,26 @@ class BridgeEventEmitter {
           ...acc,
         }
       }, {}));
+      const allTxsWithBlockNum = await Promise.all(allTxs.map((tx: any) => {
+        return (async () => {
+          const blockHeader = await this.rpc.get_header(tx.tx_status.block_hash);
+          return {
+            blockNumber: parseInt(blockHeader.number, 16),
+            ...tx
+          }
+        })();
+      }));
+      // TODO, use tx-index also
+      allTxsWithBlockNum.sort((tx1, tx2) => tx1.blockNumber - tx2.blockNumber);
       // TODO: sort events properly. Kind of related to the reorg problem.
 
-      // map tx to event
-
-      // call subscriebrs
+      // map tx to event and call subscirbers
+      const events = allTxsWithBlockNum.map(this.txToEvent, this);
+      for (let event of events) {
+        for (let subscriber of this.subscribers) {
+          subscriber(event);
+        }
+      }
 
       this.lastSeenBlock = tip;
     }
@@ -139,6 +178,76 @@ class BridgeEventEmitter {
     const index = this.subscribers.indexOf(subscriber);
     this.subscribers.splice(index);
   }
+
+  private txToEvent(tx: DetailedTx): BridgeEvent {
+    // if it has no bridge in inputs, but a bridge in outputs, it is a deploy
+    // if it has a deposit lock in the outputs, it is a deposit
+    // if there is bridge and deposit in the inputs, it is a collect deposit
+    const bridgeInInputs = tx.transaction.inputs.some(input => {
+      // TODO: fix this retardation
+      let inputCell = input as any;
+      if (!inputCell.type) return false;
+      return utils.computeScriptHash(this.bridgeScript) === utils.computeScriptHash(inputCell.type);
+    });
+    const bridgeInOutputs = tx.transaction.outputs.some(output => {
+      // TODO: fix this retardation
+      let outputCell = output as any;
+      if (!outputCell.type) return false;
+      return utils.computeScriptHash(this.bridgeScript) === utils.computeScriptHash(outputCell.type);
+    });
+
+    // this means bridge deployment
+    if (!bridgeInInputs && bridgeInOutputs) {
+      const initialBridgeCell = tx.transaction.outputs.find(output => {
+        if (!output.type) return false;
+        return utils.computeScriptHash(this.bridgeScript) == utils.computeScriptHash(output.type)
+      });
+      if (!initialBridgeCell) throw new Error("This state can not happen, but TS typeschecker is not smart enough to figure it out");
+      return {
+        txHash: tx.transaction.hash as string,
+        event: {
+          kind: "bridge_deployed",
+          initialCapacity: BigInt(initialBridgeCell.capacity),
+        }
+      };
+    }
+
+    const cellIsADepositToOurBridge = (c: any) => {
+      if (!(c.lock.code_hash == this.config.DEPOSIT_CODE_HASH)) return false;
+      const argsTypeHash = "0x" + c.lock.args.slice(66);
+      const bridgeTypeHash = utils.computeScriptHash(this.bridgeScript);
+      return argsTypeHash == bridgeTypeHash;
+    };
+    const depositInOutputs = tx.transaction.outputs.find(cellIsADepositToOurBridge);
+    // this means a deposit to our bridge
+    if (depositInOutputs) {
+      const depositAmount = BigInt(depositInOutputs.capacity);
+      const depositor = depositInOutputs.lock.args.slice(0, 66);
+      return {
+        txHash: tx.transaction.hash as string,
+        event: {
+          kind: "new_deposit",
+          amount: depositAmount,
+          depositor: depositor,
+        },
+      };
+      // else it is collect deposits (for now)
+    } else {
+      const depositsInInputs = tx.transaction.inputs.filter(cellIsADepositToOurBridge);
+      return {
+        txHash: tx.transaction.hash as string,
+        event: {
+          kind: "deposits_collected",
+          deposits: depositsInInputs.map(output => {
+            return {
+              depositor: (output as any).lock.args.slice(0, 66),
+              amount: BigInt((output as any).capacity),
+            }
+          }),
+        },
+      };
+    }
+  }
 }
 
-export { BridgeEventEmitter, BridgeEvent };
+export { BridgeEventEmitter, BridgeEvent, Subscriber };

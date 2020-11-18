@@ -5,6 +5,7 @@ import { TransactionSkeletonType, TransactionSkeleton, sealTransaction, createTr
 import { List } from "immutable";
 import { secp256k1Blake160 } from "@ckb-lumos/common-scripts";
 import { initializeConfig } from "@ckb-lumos/config-manager";
+import { BridgeEventEmitter, Subscriber, BridgeEvent } from "./events";
 
 interface BridgeConfig {
   SIGHASH_DEP: CellDep,
@@ -33,13 +34,15 @@ class BridgeClient {
   readonly CONFIG: BridgeConfig;
   indexer: Indexer;
   rpc: RPC;
+  eventEmitter: BridgeEventEmitter;
   BRIDGE_SCRIPT?: Script;
 
-  constructor(config: BridgeConfig, indexer: Indexer, rpc: RPC) {
+  constructor(config: BridgeConfig, indexer: Indexer, rpc: RPC, eventEmitter: BridgeEventEmitter) {
     this.CONFIG = config;
     this.indexer = indexer;
     this.rpc = rpc;
     this.BRIDGE_SCRIPT = this.CONFIG.BRIDGE_SCRIPT;
+    this.eventEmitter = eventEmitter;
 
     initializeConfig();
     this.indexer.startForever();
@@ -108,6 +111,9 @@ class BridgeClient {
     const sigs = await sign(skeleton);
     const tx = sealTransaction(skeleton, sigs);
     const txHash = await this.rpc.send_transaction(tx);
+    const subscriber = await this.awaitTransaction(txHash);
+    this.eventEmitter.unsubscribe(subscriber);
+
     this.BRIDGE_SCRIPT = bridgeScript;
     return txHash;
   }
@@ -157,6 +163,8 @@ class BridgeClient {
     const sigs = await sign(skeleton);
     const tx = sealTransaction(skeleton, sigs);
     const txHash = await this.rpc.send_transaction(tx);
+    const subscriber = await this.awaitTransaction(txHash);
+    this.eventEmitter.unsubscribe(subscriber);
     return txHash;
   }
 
@@ -196,6 +204,8 @@ class BridgeClient {
     const sigs = await sign(skeleton);
     const tx = sealTransaction(skeleton, sigs);
     const txHash = await this.rpc.send_transaction(tx);
+    const subscriber = await this.awaitTransaction(txHash);
+    this.eventEmitter.unsubscribe(subscriber);
     return txHash;
   }
 
@@ -259,6 +269,15 @@ class BridgeClient {
       validators: validators,
       capacity: BigInt(latestCell.cell_output.capacity),
     };
+  }
+
+  awaitTransaction(txHash: string): Promise<Subscriber> {
+    return new Promise((resolve) => {
+      function subscriber(event: BridgeEvent): void {
+        if (event.txHash === txHash) resolve(subscriber);
+      }
+      this.eventEmitter.subscribe(subscriber);
+    });
   }
 
   private makeSkeleton(inputs: Array<Cell>, outputs: Array<Cell>, deps: Array<CellDep>, witnesses: Array<HexString>): TransactionSkeletonType {
