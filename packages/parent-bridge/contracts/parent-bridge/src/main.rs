@@ -8,17 +8,16 @@
 use core::result::Result;
 
 mod code_hashes;
-use code_hashes::{CODE_HASH_DEPOSIT_LOCK, CODE_HASH_ANYONE_CAN_SPEND};
+use code_hashes::{CODE_HASH_DEPOSIT_LOCK, CODE_HASH_ANYONE_CAN_SPEND, CODE_HASH_AUDIT_DELAY};
 
 // Import heap related library from `alloc`
 // https://doc.rust-lang.org/alloc/index.html
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use ckb_std::{
     ckb_constants::Source,
     ckb_types::bytes::Bytes,
-    debug, default_alloc, entry,
+    default_alloc, entry,
     error::SysError,
     high_level::{
         load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
@@ -27,12 +26,9 @@ use ckb_std::{
     },
 };
 use core::convert::TryFrom;
-use ecdsa::signature::Signature as SigTrait;
 use elliptic_curve::sec1::ToEncodedPoint;
-use k256::ecdsa::{recoverable, SigningKey};
+use k256::ecdsa::{recoverable};
 use sha3::{Digest, Keccak256};
-
-use hex::encode;
 
 entry!(entry);
 default_alloc!();
@@ -64,9 +60,9 @@ enum Error {
     WrongStateId = 10,
     TooManyTypeOutputs = 11,
     EmptyValidatorList = 12,
-    InvalidPayoutAmount = 13,
+    WrongScriptArgsLength = 13,
     InvalidWitnessEncoding = 14,
-    InconsistentStateId = 15,
+    InvalidWithdrawalCapacity = 15,
     DepositCapacityComputedIncorrectly = 16,
     DepositsShouldNotChangeData = 17,
     NotSignedByTrustee = 18,
@@ -149,7 +145,6 @@ impl StateTransition {
             });
         }
 
-        let amount: u128 = 0;
         // load first witness
         let tx = load_transaction()?;
         let witness = tx.witnesses().get_unchecked(0);
@@ -271,7 +266,7 @@ impl StateTransition {
                 // recover all signers
                 for i in 0..(sigs.len()) {
                     let preamble: &[u8] = b"\x19Ethereum Signed Message:\n128";
-                    let hashStruct = Keccak256::new().chain(&[preamble, &receipt[..]].concat()[..]);
+                    //let hashStruct = Keccak256::new().chain(&[preamble, &receipt[..]].concat()[..]);
                     let sig: recoverable::Signature =
                         recoverable::Signature::try_from(&sigs[i][..]).unwrap();
                     let recovered_key = sig.recover_verify_key([preamble, &receipt[..]].concat().as_slice()).unwrap();
@@ -283,13 +278,13 @@ impl StateTransition {
                     quorum[pos] = true;
                 }
                 // determine quorum
-                let mut sigCount = 0;
+                let mut sig_count = 0;
                 for i in 0..(validators.len()) {
                     if quorum[i] {
-                        sigCount += 1;
+                        sig_count += 1;
                     }
                 }
-                if sigCount < validators.len() * 2 / 3 {
+                if sig_count < validators.len() * 2 / 3 {
                     return Err(Error::SignatureQuorumNotMet);
                 }
                 // check capacity
@@ -305,12 +300,20 @@ impl StateTransition {
                     return Err(Error::InvalidWithdrawalCapacity);
                 }
                 let lock_code_hash = load_cell_lock(1, Source::Output)?.code_hash().raw_data();
-                // todo: this should be SECP256K1_BLAKE160_SIGHASH instead
-                if *lock_code_hash != CODE_HASH_ANYONE_CAN_SPEND[..] {
+                if *lock_code_hash != CODE_HASH_AUDIT_DELAY[..] {
                     return Err(Error::WrongLockScript);
                 }
                 let lock_args = load_cell_lock(1, Source::Output)?.args().raw_data();
-                
+                if lock_args.len() != 72 {
+                    return Err(Error::WrongScriptArgsLength);
+                }
+                let _trustee_lock_hash = lock_args.slice(0..32);
+                // todo: check trustee_lock_hash
+                let _owner_lock_hash = lock_args.slice(32..64);
+                // todo: check owner_lock_hash
+                let _timeout = lock_args.slice(64..72);
+                // todo: check timout
+
                 // todo: check that hash not included in data_before
                 let expected_data = [data_before, &hash[..]].concat();
                 if data_after != &expected_data {

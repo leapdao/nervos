@@ -212,10 +212,16 @@ fn test_unlock() {
 
     let recipient = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
     // TODO: actually use audit delay script
-    let audit_delay_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
-    let audit_delay_lock = context
-        .build_script(&audit_delay_out_point, recipient) //TODO: add trustee later, once we know it
+    let contract_bin: Bytes = Loader::default().load_binary("audit-delay");
+    let contract_out_point = context.deploy_cell(contract_bin);
+
+    let lock_script_hash = lock_script.calc_script_hash().raw_data();
+    let audit_delay_lock_args: Bytes = Bytes::from([&*lock_script_hash, &[0; 12], &*recipient, &100u64.to_be_bytes()].concat());
+
+    let audit_delay_script = context
+        .build_script(&contract_out_point, audit_delay_lock_args)
         .expect("script");
+    let audit_delay_script_dep = CellDep::new_builder().out_point(contract_out_point).build();
 
     let outputs = vec![
         CellOutput::new_builder()
@@ -224,10 +230,10 @@ fn test_unlock() {
             .type_(Some(bridge_script.clone()).pack())
             .build(),
         // payment output
--       CellOutput::new_builder()
+        CellOutput::new_builder()
             .capacity(10u64.pack())
-            .lock(audit_delay_lock.clone())
--           .build(),
+            .lock(audit_delay_script.clone())
+            .build(),
         // change output
         CellOutput::new_builder()
            .capacity(8u64.pack())
@@ -246,12 +252,12 @@ fn test_unlock() {
         .outputs_data(outputs_data.pack())
         .cell_dep(lock_script_dep)
         .cell_dep(bridge_script_dep)
+        .cell_dep(audit_delay_script_dep)
         .witnesses(witnesses.pack())
         .build();
     let tx = context.complete_tx(tx);
      // run
-    let cycles = context
-        .verify_tx(&tx, MAX_CYCLES)
+    context.verify_tx(&tx, MAX_CYCLES)
         .expect("pass verification");
 }
 
@@ -1825,7 +1831,6 @@ fn test_not_spent_with_owner_input() {
     let contract_bin: Bytes = Loader::default().load_binary("audit-delay");
     let contract_out_point = context.deploy_cell(contract_bin);
 
-    let lock_script_hash = lock_script.calc_script_hash().raw_data();
     let audit_delay_lock_args: Bytes = Bytes::from([&[0; 32][..], &[0; 32][..], &100u64.to_be_bytes()[..]].concat());
 
     let audit_delay_script = context
