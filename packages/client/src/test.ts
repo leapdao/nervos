@@ -6,6 +6,7 @@ import { Indexer } from "@ckb-lumos/indexer";
 import { RPC } from "ckb-js-toolkit";
 import readline from "readline";
 import { TransactionSkeletonType } from "@ckb-lumos/helpers";
+import { signWithPriv } from "./sign";
 
 const myConfig: BridgeConfig = {
   SIGHASH_DEP: {
@@ -87,15 +88,15 @@ const validators: Array<string> = ["0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"]
 const sleep = (t: number) => new Promise((resolve) => setTimeout(resolve, t));
 
 async function main() {
-  await client.deploy(10000n, 1000000000000n, validators, sign);
+  await client.deploy(10000n, 1000000000000n, validators, signWithPriv);
   console.log(client.BRIDGE_SCRIPT);
   console.log(await client.getLatestBridgeState());
-  await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, sign);
-  await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 2000000000000n, 10000n, sign);
-  await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 3000000000000n, 10000n, sign);
+  await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, signWithPriv);
+  await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 2000000000000n, 10000n, signWithPriv);
+  await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 3000000000000n, 10000n, signWithPriv);
   const depositsBefore = await client.getDeposits();
   console.log(depositsBefore);
-  await client.collectDeposits(depositsBefore, 10000n, myConfig.ACCOUNT_LOCK_ARGS, sign);
+  await client.collectDeposits(depositsBefore, 10000n, myConfig.ACCOUNT_LOCK_ARGS, signWithPriv);
   const depositsAfter = await client.getDeposits();
   console.log(depositsAfter);
   console.log(await client.getLatestBridgeState());
