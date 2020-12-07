@@ -88,7 +88,7 @@ type Receipt = [u8; 128];
 type Signature = [u8; 65];
 
 enum StateTransition {
-    DeployBridge { validators: Vec<Address>, id: Bytes },
+    DeployBridge { validators: Vec<Address>, id: Bytes , trustee: Address},
     Payout { validators: Vec<Address>, id: Bytes,  receipt: Receipt, sigs: Vec<Signature>, amount: u128},
     CollectDeposits {
         total: u64,
@@ -143,7 +143,9 @@ impl StateTransition {
             return Err(Error::EmptyValidatorList);
         };
         let state_id: Bytes = get_state_id()?;
-        
+        debug!("validators: {:?}", validators);
+        let trustee = parse_trustee_from_args(&*script_args)?;
+
         // check state ID
         only_one_output_has_state_id()?;
 
@@ -152,6 +154,7 @@ impl StateTransition {
             return Ok(StateTransition::DeployBridge {
                 validators: validators,
                 id: state_id,
+                trustee: trustee,
             });
         }
         // check capacity
@@ -219,7 +222,7 @@ impl StateTransition {
 
     fn verify(&self) -> Result<(), Error> {
         match self {
-            Self::DeployBridge { validators, id } => {
+            Self::DeployBridge { validators, id ,trustee} => {
                 // lock script on output0 should be anyone can spend
                 let lock_code_hash = load_cell_lock(0, Source::Output)?.code_hash().raw_data();
                 if *lock_code_hash != CODE_HASH_ANYONE_CAN_SPEND[..] {
@@ -239,13 +242,13 @@ impl StateTransition {
                     return Err(Error::DataLengthNotZero);
                 }
 
-                // verify typescript args contains id and validators
+                // verify typescript args contains id and trustee and validators
                 let type_script_0 = load_cell_type(0, Source::Output)?.unwrap();
                 let type_script_args = type_script_0.args().raw_data();
                 let validators_flat = Bytes::from(validators[..].concat());
-                let id_and_validators = Bytes::from([&*id, &*validators_flat].concat());
+                let id_and_trustee_and_validators = Bytes::from([&*id, &*Bytes::from(&trustee[..]), &*validators_flat].concat());
 
-                if id_and_validators != type_script_args {
+                if id_and_trustee_and_validators != type_script_args {
                     return Err(Error::WrongStateId);
                 }
 
@@ -300,8 +303,8 @@ fn slice_to_array_20(slice: &[u8]) -> [u8; 20] {
 
 fn parse_validator_list_from_args(args: &[u8]) -> Result<Vec<Address>, Error> {
     // args consist of outpount + validator list
-    // output has length of 36 bytes
-    let val_args = &args[36..];
+    // output has length of 36 bytes + trustee is 20 bytes
+    let val_args = &args[56..];
     // validator address
     if val_args.len() % ADDRESS_LEN != 0 {
         return Err(Error::InvalidArgsEncoding);
@@ -312,6 +315,10 @@ fn parse_validator_list_from_args(args: &[u8]) -> Result<Vec<Address>, Error> {
         validators.push(slice_to_array_20(&val_args[ix..ix + ADDRESS_LEN]));
     }
     Ok(validators)
+}
+
+fn parse_trustee_from_args(args: &[u8]) -> Result<Address, Error> {
+    Ok(slice_to_array_20(&args[36..56]))
 }
 
 fn get_state_id() -> Result<Bytes, Error> {
