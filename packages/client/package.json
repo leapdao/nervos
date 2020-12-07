@@ -11,8 +11,11 @@
   "license": "ISC",
   "dependencies": {
     "@ckb-lumos/base": "^0.13.1",
+    "@ckb-lumos/common-scripts": "^0.14.0",
     "@ckb-lumos/helpers": "^0.13.1",
     "@ckb-lumos/indexer": "^0.13.1",
+    "@nervosnetwork/ckb-sdk-core": "^0.38.2",
+    "@types/elliptic": "^6.4.12",
     "immutable": "^4.0.0-rc.12"
   },
   "devDependencies": {
