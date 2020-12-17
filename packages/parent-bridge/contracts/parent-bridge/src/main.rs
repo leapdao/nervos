@@ -15,6 +15,7 @@ use code_hashes::{CODE_HASH_DEPOSIT_LOCK, CODE_HASH_ANYONE_CAN_SPEND, CODE_HASH_
 use alloc::vec::Vec;
 
 use ckb_std::{
+    debug,
     ckb_constants::Source,
     ckb_types::bytes::Bytes,
     default_alloc, entry,
@@ -70,9 +71,8 @@ enum Error {
     LeftoverCapacity = 20,
     UnknownReceiptSigner = 21,
     SignatureQuorumNotMet = 22,
-    WithdrawalCapacityComputedIncorrectly = 23
+    WithdrawalCapacityComputedIncorrectly = 23,
     WithdrawalHashAlreadyUsed = 24,
-    InvalidWithdrawalCapacity = 25,
 }
 
 impl From<SysError> for Error {
@@ -371,6 +371,14 @@ impl StateTransition {
 
 fn slice_to_array_20(slice: &[u8]) -> [u8; 20] {
     let mut array = [0u8; 20];
+    for (&x, p) in slice.iter().zip(array.iter_mut()) {
+        *p = x;
+    }
+    array
+}
+
+fn slice_to_array_32(slice: &[u8]) -> [u8; 32] {
+    let mut array = [0u8; 32];
     for (&x, p) in slice.iter().zip(array.iter_mut()) {
         *p = x;
     }

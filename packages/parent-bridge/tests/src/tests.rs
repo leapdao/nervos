@@ -139,132 +139,6 @@ fn test_deploy() {
 //     assert_error_eq!(err, ScriptError::ValidationFailure(5).input_lock_script(0));
 // }
 
-#[test]
-fn test_unlock() {
-    let mut context = Context::default();
-    let validator_list = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
-
-    // mock funding output
-    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
-    let always_success_out_point = context.deploy_cell(always_success_bin);
-    let lock_script = context
-        .build_script(&always_success_out_point, Default::default())
-        .expect("script");
-    let lock_script_dep = CellDep::new_builder()
-        .out_point(always_success_out_point.clone())
-        .build();
-
-    // create input from funding output
-    let input_out_point = context.create_cell(
-        CellOutput::new_builder()
-            .capacity(10u64.pack())
-            .lock(lock_script.clone())
-            .build(),
-        Default::default(),
-    );
-    let second_input = CellInput::new_builder()
-        .previous_output(input_out_point)
-        .build();
-
-    // mock previous bridge output
-    let tx_hash: &[u8] = &*second_input.previous_output().tx_hash().raw_data();
-    let index: &[u8] = &*second_input.previous_output().index().raw_data();
-    let state_id = Bytes::from([tx_hash, index].concat());
-
-    // state id comes in front of validator list
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
-    let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
-    let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
-    let contract_out_point = context.deploy_cell(contract_bin);
-
-    let bridge_script = context
-        .build_script(&contract_out_point, type_script_args)
-        .expect("script");
-    let bridge_script_dep = CellDep::new_builder().out_point(contract_out_point).build();
-
-    // creat input from bridge output
-    // todo: trustee address to be added to bridge script args
-    let prev_bridge_output = CellOutput::new_builder()
-        .capacity(100u64.pack())
-        .lock(lock_script.clone())
-        .type_(Some(bridge_script.clone()).pack())
-        .build();
-    let prev_bridge_outpoint = context.create_cell(
-        prev_bridge_output,
-        Bytes::new()
-    );
-    let first_input = CellInput::new_builder()
-        .previous_output(prev_bridge_outpoint).build();
-
-    //witness for first input
-    // values following documentation here: https://github.com/leapdao/nervos/blob/master/docs/childchain.md
-    let receipt = Bytes::from(Vec::from_hex("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000006677889900112233445566778899001122334455000000000000000000000000000000000000000000000000000000000000000a3344112233441122334411223344112233441122334411223344112233441122").unwrap());
-    // the signature has been created from the private key: 0x278a5de700e29faae8e40e366ec5012b5ec63d36ec77e8a2417154cc1d25383f
-    // it has the corresponding public key: 0xfdd57adec3d438ea237fe46b33ee1e016eda6b585c3e27ea66686c2ea535847946393f8145252eea68afe67e287b3ed9b31685ba6c3b00060a73b9b1242d68f7
-    let signature = Bytes::from(Vec::from_hex("bd25ff5dd4b3c164e2dc0612f75c7fc19bacabf323c4870082730267a0d221b47c624cf3fe329ab363c73635d9568d0075bc7573f4949e696d2e7a7bbb14a6b601").unwrap());
-    let action_byte = Bytes::from(Vec::from_hex("00").unwrap());
-    let witness = [action_byte, receipt, signature].concat();
-
-    // empty witness for second input
-    let witnesses = vec![Bytes::from(witness),
-        Bytes::new(), Bytes::new()
-    ];
-
-    let recipient = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
-    // TODO: actually use audit delay script
-    let contract_bin: Bytes = Loader::default().load_binary("audit-delay");
-    let contract_out_point = context.deploy_cell(contract_bin);
-
-    let trustee_lock_script_hash = lock_script.calc_script_hash().raw_data();
-    let owner_lock_script = context
-      .build_script(&always_success_out_point, recipient)
-      .expect("script");
-    let owner_lock_script_hash = owner_lock_script.calc_script_hash().raw_data();
-    let audit_delay_lock_args: Bytes = Bytes::from([&*trustee_lock_script_hash, &*owner_lock_script_hash, &100u64.to_be_bytes()].concat());
-
-    let audit_delay_script = context
-        .build_script(&contract_out_point, audit_delay_lock_args)
-        .expect("script");
-    let audit_delay_script_dep = CellDep::new_builder().out_point(contract_out_point).build();
-
-    let outputs = vec![
-        CellOutput::new_builder()
-            .capacity(90u64.pack())
-            .lock(lock_script.clone())
-            .type_(Some(bridge_script.clone()).pack())
-            .build(),
-        // payment output
-        CellOutput::new_builder()
-            .capacity(10u64.pack())
-            .lock(audit_delay_script.clone())
-            .build(),
-        // change output
-        CellOutput::new_builder()
-           .capacity(8u64.pack())
-           .lock(lock_script.clone())
-           .build()
-    ];
-
-    // TODO: differentiate validator from spent transaction hashes in data from first output
-    let outputs_data = vec![Bytes::from(Vec::from_hex("49b6ae03aab45b7410ddb73d161e42ba37675f2e3e8f276e1ac2afc3cf1839fe").unwrap()), Bytes::new(), Bytes::new()];
-
-    // build transaction
-    let tx = TransactionBuilder::default()
-        .input(first_input)
-        .input(second_input)
-        .outputs(outputs)
-        .outputs_data(outputs_data.pack())
-        .cell_dep(lock_script_dep)
-        .cell_dep(bridge_script_dep)
-        .cell_dep(audit_delay_script_dep)
-        .witnesses(witnesses.pack())
-        .build();
-    let tx = context.complete_tx(tx);
-     // run
-    context.verify_tx(&tx, MAX_CYCLES)
-        .expect("pass verification");
-}
-
 
 #[test]
 fn test_wrong_validator_list_length() {
@@ -1986,4 +1860,130 @@ fn test_wrong_script_args_length() {
         .unwrap_err();
 
     assert_error_eq!(err, ScriptError::ValidationFailure(7).input_lock_script(0));
+}
+
+#[test]
+fn test_unlock() {
+    let mut context = Context::default();
+    let validator_list = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
+
+    // mock funding output
+    let always_success_bin: Bytes = Loader::default().load_binary("anyone-can-spend");
+    let always_success_out_point = context.deploy_cell(always_success_bin);
+    let lock_script = context
+        .build_script(&always_success_out_point, Default::default())
+        .expect("script");
+    let lock_script_dep = CellDep::new_builder()
+        .out_point(always_success_out_point.clone())
+        .build();
+
+    // create input from funding output
+    let input_out_point = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Default::default(),
+    );
+    let second_input = CellInput::new_builder()
+        .previous_output(input_out_point)
+        .build();
+
+    // mock previous bridge output
+    let tx_hash: &[u8] = &*second_input.previous_output().tx_hash().raw_data();
+    let index: &[u8] = &*second_input.previous_output().index().raw_data();
+    let state_id = Bytes::from([tx_hash, index].concat());
+
+    // state id comes in front of validator list
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
+    let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
+    let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
+    let contract_out_point = context.deploy_cell(contract_bin);
+
+    let bridge_script = context
+        .build_script(&contract_out_point, type_script_args)
+        .expect("script");
+    let bridge_script_dep = CellDep::new_builder().out_point(contract_out_point).build();
+
+    // creat input from bridge output
+    // todo: trustee address to be added to bridge script args
+    let prev_bridge_output = CellOutput::new_builder()
+        .capacity(100u64.pack())
+        .lock(lock_script.clone())
+        .type_(Some(bridge_script.clone()).pack())
+        .build();
+    let prev_bridge_outpoint = context.create_cell(
+        prev_bridge_output,
+        Bytes::new()
+    );
+    let first_input = CellInput::new_builder()
+        .previous_output(prev_bridge_outpoint).build();
+
+    //witness for first input
+    // values following documentation here: https://github.com/leapdao/nervos/blob/master/docs/childchain.md
+    let receipt = Bytes::from(Vec::from_hex("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000006677889900112233445566778899001122334455000000000000000000000000000000000000000000000000000000000000000a3344112233441122334411223344112233441122334411223344112233441122").unwrap());
+    // the signature has been created from the private key: 0x278a5de700e29faae8e40e366ec5012b5ec63d36ec77e8a2417154cc1d25383f
+    // it has the corresponding public key: 0xfdd57adec3d438ea237fe46b33ee1e016eda6b585c3e27ea66686c2ea535847946393f8145252eea68afe67e287b3ed9b31685ba6c3b00060a73b9b1242d68f7
+    let signature = Bytes::from(Vec::from_hex("bd25ff5dd4b3c164e2dc0612f75c7fc19bacabf323c4870082730267a0d221b47c624cf3fe329ab363c73635d9568d0075bc7573f4949e696d2e7a7bbb14a6b601").unwrap());
+    let action_byte = Bytes::from(Vec::from_hex("00").unwrap());
+    let witness = [action_byte, receipt, signature].concat();
+
+    // empty witness for second input
+    let witnesses = vec![Bytes::from(witness),
+        Bytes::new(), Bytes::new()
+    ];
+
+    let recipient = Bytes::from(Vec::from_hex("f3beac30c498d9e26865f34fcaa57dbb935b0d74").unwrap());
+    // TODO: actually use audit delay script
+    let contract_bin: Bytes = Loader::default().load_binary("audit-delay");
+    let contract_out_point = context.deploy_cell(contract_bin);
+
+    let trustee_lock_script_hash = lock_script.calc_script_hash().raw_data();
+    let owner_lock_script = context
+      .build_script(&always_success_out_point, recipient)
+      .expect("script");
+    let owner_lock_script_hash = owner_lock_script.calc_script_hash().raw_data();
+    let audit_delay_lock_args: Bytes = Bytes::from([&*trustee_lock_script_hash, &*owner_lock_script_hash, &100u64.to_be_bytes()].concat());
+
+    let audit_delay_script = context
+        .build_script(&contract_out_point, audit_delay_lock_args)
+        .expect("script");
+    let audit_delay_script_dep = CellDep::new_builder().out_point(contract_out_point).build();
+
+    let outputs = vec![
+        CellOutput::new_builder()
+            .capacity(90u64.pack())
+            .lock(lock_script.clone())
+            .type_(Some(bridge_script.clone()).pack())
+            .build(),
+        // payment output
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(audit_delay_script.clone())
+            .build(),
+        // change output
+        CellOutput::new_builder()
+           .capacity(8u64.pack())
+           .lock(lock_script.clone())
+           .build()
+    ];
+
+    // TODO: differentiate validator from spent transaction hashes in data from first output
+    let outputs_data = vec![Bytes::from(Vec::from_hex("49b6ae03aab45b7410ddb73d161e42ba37675f2e3e8f276e1ac2afc3cf1839fe").unwrap()), Bytes::new(), Bytes::new()];
+
+    // build transaction
+    let tx = TransactionBuilder::default()
+        .input(first_input)
+        .input(second_input)
+        .outputs(outputs)
+        .outputs_data(outputs_data.pack())
+        .cell_dep(lock_script_dep)
+        .cell_dep(bridge_script_dep)
+        .cell_dep(audit_delay_script_dep)
+        .witnesses(witnesses.pack())
+        .build();
+    let tx = context.complete_tx(tx);
+     // run
+    context.verify_tx(&tx, MAX_CYCLES)
+        .expect("pass verification");
 }
