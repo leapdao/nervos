@@ -22,6 +22,7 @@ use ckb_std::{
     high_level::{
         load_cell_data, load_cell_lock, load_cell_type, load_cell_type_hash, load_input_out_point,
         load_script, load_script_hash, QueryIter, load_transaction, load_cell_capacity, load_input,
+        load_cell_lock_hash,
     },
 };
 use k256::{
@@ -68,6 +69,9 @@ enum Error {
     // Add customized errors here...
     DepositCapacityComputedIncorrectly = 16,
     DepositsShouldNotChangeData = 17,
+    NotSignedByTrustee = 18,
+    BridgeWasNotDissolved = 19,
+    LeftoverCapacity = 20,
 }
 
 impl From<SysError> for Error {
@@ -84,11 +88,12 @@ impl From<SysError> for Error {
 }
 
 type Address = [u8; ADDRESS_LEN];
+type Hash = [u8;32];
 type Receipt = [u8; 128];
 type Signature = [u8; 65];
 
 enum StateTransition {
-    DeployBridge { validators: Vec<Address>, id: Bytes , trustee: Address},
+    DeployBridge { validators: Vec<Address>, id: Bytes , trustee: Hash},
     Payout { validators: Vec<Address>, id: Bytes,  receipt: Receipt, sigs: Vec<Signature>, amount: u128},
     CollectDeposits {
         total: u64,
@@ -97,6 +102,7 @@ enum StateTransition {
         data_before: Vec<u8>,
         data_after: Vec<u8>,
     },
+    HaltAndDissolve { trustee: Hash},
 }
 
 fn verify_payout_amount() -> Result<u128, Error> {
@@ -189,12 +195,12 @@ impl StateTransition {
                     sigs.push(temp_sig);
                 }
                 Ok(StateTransition::Payout{
-                validators: validators,
-                id: state_id,
-                receipt: receipt,
-                sigs: sigs,
-                amount: amount
-            })
+                    validators: validators,
+                    id: state_id,
+                    receipt: receipt,
+                    sigs: sigs,
+                    amount: amount
+                })
             },
             1 => {
                 let bridge_cap_before = load_cell_capacity(0, Source::Input)?;
@@ -214,6 +220,11 @@ impl StateTransition {
                     cap_after: bridge_cap_after,
                     data_before: data_before,
                     data_after: data_after,
+                })
+            },
+            2 => {
+                Ok(StateTransition::HaltAndDissolve{
+                    trustee: trustee,
                 })
             },
             _ => Err(Error::StateTransitionDoesNotExist),
@@ -289,6 +300,33 @@ impl StateTransition {
                 }
                 Ok(())
             }
+            Self::HaltAndDissolve {trustee} => {
+                //Is trustee signer of any input?
+                let trustee_signed = QueryIter::new(load_cell_lock_hash, Source::Input)
+                    .filter(|hash| hash == trustee)
+                    .count()
+                    > 0;
+                if !trustee_signed {
+                    return Err(Error::NotSignedByTrustee);
+                }
+                //Check there is no bridge in the outputs
+                let my_hash = load_script_hash()?;
+                let is_bridge_in_outputs = QueryIter::new(load_cell_type_hash, Source::Output)
+                    .filter(|option| option.map_or(false, |hash| hash == my_hash))
+                    .count()
+                    > 0;
+                if is_bridge_in_outputs {
+                    return Err(Error::BridgeWasNotDissolved);
+                }
+                //Check all capacity is spent
+                let bridge_cap = load_cell_capacity(0, Source::GroupInput)?;
+                let outputs_cap = QueryIter::new(load_cell_capacity, Source::Output)
+                    .sum();
+                if bridge_cap > outputs_cap {
+                    return Err(Error::LeftoverCapacity);
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -301,10 +339,18 @@ fn slice_to_array_20(slice: &[u8]) -> [u8; 20] {
     array
 }
 
+fn slice_to_array_32(slice: &[u8]) -> [u8; 32] {
+    let mut array = [0u8; 32];
+    for (&x, p) in slice.iter().zip(array.iter_mut()) {
+        *p = x;
+    }
+    array
+}
+
 fn parse_validator_list_from_args(args: &[u8]) -> Result<Vec<Address>, Error> {
     // args consist of outpount + validator list
-    // output has length of 36 bytes + trustee is 20 bytes
-    let val_args = &args[56..];
+    // output has length of 36 bytes + trustee is 32 bytes
+    let val_args = &args[68..];
     // validator address
     if val_args.len() % ADDRESS_LEN != 0 {
         return Err(Error::InvalidArgsEncoding);
@@ -317,8 +363,8 @@ fn parse_validator_list_from_args(args: &[u8]) -> Result<Vec<Address>, Error> {
     Ok(validators)
 }
 
-fn parse_trustee_from_args(args: &[u8]) -> Result<Address, Error> {
-    Ok(slice_to_array_20(&args[36..56]))
+fn parse_trustee_from_args(args: &[u8]) -> Result<[u8;32], Error> {
+    Ok(slice_to_array_32(&args[36..68]))
 }
 
 fn get_state_id() -> Result<Bytes, Error> {

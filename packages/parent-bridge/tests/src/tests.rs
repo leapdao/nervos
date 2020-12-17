@@ -35,7 +35,7 @@ fn test_deploy() {
     let tx_hash: &[u8] = &*input.previous_output().tx_hash().raw_data();
     let index: &[u8] = &*input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -104,7 +104,7 @@ fn test_deploy() {
 //     let index: &[u8] = &*input.previous_output().index().raw_data();
 //     let state_id = Bytes::from([tx_hash, index].concat());
 
-//     let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+//     let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     // let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
 //     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -170,7 +170,7 @@ fn test_unlock() {
     let state_id = Bytes::from([tx_hash, index].concat());
 
     // state id comes in front of validator list
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
     let contract_out_point = context.deploy_cell(contract_bin);
@@ -283,7 +283,7 @@ fn test_wrong_validator_list_length() {
     let index: &[u8] = &*input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
 
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -346,7 +346,7 @@ fn test_wrong_lock_script() {
     let index: &[u8] = &*input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
 
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -410,7 +410,7 @@ fn test_wrong_type_script() {
     let index: &[u8] = &*input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
 
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -480,7 +480,7 @@ fn test_data_length_not_zero() {
     let index: &[u8] = &*input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
 
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -545,7 +545,7 @@ fn test_wrong_state_id() {
     let scrambler: &[u8] = &[1, 1, 1, 1];
     let state_id = Bytes::from([tx_hash, scrambler].concat());
 
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -609,7 +609,7 @@ fn test_too_many_type_outputs() {
     let index: &[u8] = &*input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
 
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let contract_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -887,7 +887,7 @@ fn test_collect_1_deposit() {
     let tx_hash: &[u8] = &*bridge_creation_input.previous_output().tx_hash().raw_data();
     let index: &[u8] = &*bridge_creation_input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let bridge_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -989,7 +989,7 @@ fn test_collect_3_deposits() {
     let tx_hash: &[u8] = &*bridge_creation_input.previous_output().tx_hash().raw_data();
     let index: &[u8] = &*bridge_creation_input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let bridge_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -1115,7 +1115,7 @@ fn test_collect_desposits_invalid_sum() {
     let tx_hash: &[u8] = &*bridge_creation_input.previous_output().tx_hash().raw_data();
     let index: &[u8] = &*bridge_creation_input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let bridge_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -1242,7 +1242,7 @@ fn test_collect_deposit_fiddling_with_data() {
     let tx_hash: &[u8] = &*bridge_creation_input.previous_output().tx_hash().raw_data();
     let index: &[u8] = &*bridge_creation_input.previous_output().index().raw_data();
     let state_id = Bytes::from([tx_hash, index].concat());
-    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999").unwrap());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
     let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
 
     let bridge_bin: Bytes = Loader::default().load_binary("parent-bridge");
@@ -1315,4 +1315,397 @@ fn test_collect_deposit_fiddling_with_data() {
         .unwrap_err();
 
     assert_error_eq!(err, ScriptError::ValidationFailure(17));
+}
+
+#[test]
+fn test_dissolve_bridge_success() {
+    let mut context = Context::default();
+
+    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let lock_script = context
+        .build_script(&always_success_out_point, Default::default())
+        .expect("script");
+    let lock_script_dep = CellDep::new_builder()
+        .out_point(always_success_out_point)
+        .build();
+
+    let validator_list = Bytes::from(Vec::from_hex("1122334411223343241123344112233441122344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
+    
+    let bridge_creation_out_point = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Default::default(),
+    );
+    let bridge_creation_input = CellInput::new_builder()
+        .previous_output(bridge_creation_out_point)
+        .build();
+
+    let tx_hash: &[u8] = &*bridge_creation_input.previous_output().tx_hash().raw_data();
+    let index: &[u8] = &*bridge_creation_input.previous_output().index().raw_data();
+    let state_id = Bytes::from([tx_hash, index].concat());
+    let trustee = lock_script.calc_script_hash().raw_data();
+    let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
+
+    let bridge_bin: Bytes = Loader::default().load_binary("parent-bridge");
+    let bridge_out_point = context.deploy_cell(bridge_bin);
+    let bridge_script = context
+        .build_script(&bridge_out_point, type_script_args)
+        .expect("script");
+    let bridge_script_dep = CellDep::new_builder().out_point(bridge_out_point).build();
+
+    let input0_out_point = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .type_(Some(bridge_script.clone()).pack())
+            .build(),
+        Default::default(),
+    );
+
+    let input0 = CellInput::new_builder()
+        .previous_output(input0_out_point)
+        .build();
+    
+    let input_out_point1 = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Default::default(),
+    );
+
+    let input1 = CellInput::new_builder()
+        .previous_output(input_out_point1)
+        .build();
+
+    let outputs = vec![
+        CellOutput::new_builder()
+            .capacity(5u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        CellOutput::new_builder()
+            .capacity(5u64.pack())
+            .lock(lock_script.clone())
+            .build()
+    ];
+
+    let outputs_data = vec![Bytes::new(); 2];
+
+    // in combat the secp256 lock script would check the withness
+    // for a signature, hence we can't use an actionByte here.
+    let witnesses = vec![Bytes::from(&[2u8][..]), Bytes::new()];
+
+    // build transaction
+    let tx = TransactionBuilder::default()
+        .input(input0)
+        .input(input1)
+        .outputs(outputs)
+        .outputs_data(outputs_data.pack())
+        .cell_dep(lock_script_dep)
+        .cell_dep(bridge_script_dep)
+        .witnesses(witnesses.pack())
+        .build();
+    let tx = context.complete_tx(tx);
+
+    // run
+    let cycles = context
+        .verify_tx(&tx, MAX_CYCLES)
+        .expect("pass verification");
+}
+
+#[test]
+fn test_not_signed_by_trustee() {
+    let mut context = Context::default();
+
+    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let lock_script = context
+        .build_script(&always_success_out_point, Default::default())
+        .expect("script");
+    let lock_script_dep = CellDep::new_builder()
+        .out_point(always_success_out_point)
+        .build();
+
+    let validator_list = Bytes::from(Vec::from_hex("1122334411223343241123344112233441122344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
+    
+    let bridge_creation_out_point = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Default::default(),
+    );
+    let bridge_creation_input = CellInput::new_builder()
+        .previous_output(bridge_creation_out_point)
+        .build();
+
+    let tx_hash: &[u8] = &*bridge_creation_input.previous_output().tx_hash().raw_data();
+    let index: &[u8] = &*bridge_creation_input.previous_output().index().raw_data();
+    let state_id = Bytes::from([tx_hash, index].concat());
+    let trustee = Bytes::from(Vec::from_hex("9999999999999999999999999999999999999999999999999999999999999999").unwrap());
+    let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
+
+    let bridge_bin: Bytes = Loader::default().load_binary("parent-bridge");
+    let bridge_out_point = context.deploy_cell(bridge_bin);
+    let bridge_script = context
+        .build_script(&bridge_out_point, type_script_args)
+        .expect("script");
+    let bridge_script_dep = CellDep::new_builder().out_point(bridge_out_point).build();
+
+    let input0_out_point = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .type_(Some(bridge_script.clone()).pack())
+            .build(),
+        Default::default(),
+    );
+
+    let input0 = CellInput::new_builder()
+        .previous_output(input0_out_point)
+        .build();
+    
+    let input_out_point1 = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Default::default(),
+    );
+
+    let input1 = CellInput::new_builder()
+        .previous_output(input_out_point1)
+        .build();
+
+    let outputs = vec![
+        CellOutput::new_builder()
+            .capacity(5u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        CellOutput::new_builder()
+            .capacity(5u64.pack())
+            .lock(lock_script.clone())
+            .build()
+    ];
+
+    let outputs_data = vec![Bytes::new(); 2];
+
+    // in combat the secp256 lock script would check the withness
+    // for a signature, hence we can't use an actionByte here.
+    let witnesses = vec![Bytes::from(&[2u8][..]), Bytes::new()];
+
+    // build transaction
+    let tx = TransactionBuilder::default()
+        .input(input0)
+        .input(input1)
+        .outputs(outputs)
+        .outputs_data(outputs_data.pack())
+        .cell_dep(lock_script_dep)
+        .cell_dep(bridge_script_dep)
+        .witnesses(witnesses.pack())
+        .build();
+    let tx = context.complete_tx(tx);
+
+    // run
+    let err = context
+        .verify_tx(&tx, MAX_CYCLES)
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(18));
+}
+
+#[test]
+fn test_bridge_was_not_dissolved() {
+    let mut context = Context::default();
+
+    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let lock_script = context
+        .build_script(&always_success_out_point, Default::default())
+        .expect("script");
+    let lock_script_dep = CellDep::new_builder()
+        .out_point(always_success_out_point)
+        .build();
+
+    let validator_list = Bytes::from(Vec::from_hex("1122334411223343241123344112233441122344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
+    
+    let bridge_creation_out_point = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Default::default(),
+    );
+    let bridge_creation_input = CellInput::new_builder()
+        .previous_output(bridge_creation_out_point)
+        .build();
+
+    let tx_hash: &[u8] = &*bridge_creation_input.previous_output().tx_hash().raw_data();
+    let index: &[u8] = &*bridge_creation_input.previous_output().index().raw_data();
+    let state_id = Bytes::from([tx_hash, index].concat());
+    let trustee = lock_script.calc_script_hash().raw_data();
+    let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
+
+    let bridge_bin: Bytes = Loader::default().load_binary("parent-bridge");
+    let bridge_out_point = context.deploy_cell(bridge_bin);
+    let bridge_script = context
+        .build_script(&bridge_out_point, type_script_args)
+        .expect("script");
+    let bridge_script_dep = CellDep::new_builder().out_point(bridge_out_point).build();
+
+    let input0_out_point = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .type_(Some(bridge_script.clone()).pack())
+            .build(),
+        Default::default(),
+    );
+
+    let input0 = CellInput::new_builder()
+        .previous_output(input0_out_point)
+        .build();
+    
+    let input_out_point1 = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Default::default(),
+    );
+
+    let input1 = CellInput::new_builder()
+        .previous_output(input_out_point1)
+        .build();
+
+    let outputs = vec![CellOutput::new_builder()
+        .capacity(10u64.pack())
+        .lock(lock_script.clone())
+        .type_(Some(bridge_script.clone()).pack())
+        .build()];
+
+    let outputs_data = vec![Bytes::new(); 1];
+
+    // in combat the secp256 lock script would check the withness
+    // for a signature, hence we can't use an actionByte here.
+    let witnesses = vec![Bytes::from(&[2u8][..]), Bytes::new()];
+
+    // build transaction
+    let tx = TransactionBuilder::default()
+        .input(input0)
+        .input(input1)
+        .outputs(outputs)
+        .outputs_data(outputs_data.pack())
+        .cell_dep(lock_script_dep)
+        .cell_dep(bridge_script_dep)
+        .witnesses(witnesses.pack())
+        .build();
+    let tx = context.complete_tx(tx);
+
+    // run
+    let err = context
+        .verify_tx(&tx, MAX_CYCLES)
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(19));
+}
+
+#[test]
+fn test_leftover_capacity() {
+    let mut context = Context::default();
+
+    let always_success_out_point = context.deploy_cell(ALWAYS_SUCCESS.clone());
+    let lock_script = context
+        .build_script(&always_success_out_point, Default::default())
+        .expect("script");
+    let lock_script_dep = CellDep::new_builder()
+        .out_point(always_success_out_point)
+        .build();
+
+    let validator_list = Bytes::from(Vec::from_hex("1122334411223343241123344112233441122344112233441122334411223344000000000000000000000000112233445566778899001122334455667788990000000000000000000000000000000000000000000000000000000000000004D2AAAAAAAA").unwrap());
+    
+    let bridge_creation_out_point = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Default::default(),
+    );
+    let bridge_creation_input = CellInput::new_builder()
+        .previous_output(bridge_creation_out_point)
+        .build();
+
+    let tx_hash: &[u8] = &*bridge_creation_input.previous_output().tx_hash().raw_data();
+    let index: &[u8] = &*bridge_creation_input.previous_output().index().raw_data();
+    let state_id = Bytes::from([tx_hash, index].concat());
+    let trustee = lock_script.calc_script_hash().raw_data();
+    let type_script_args = Bytes::from([&*state_id, &*trustee, &*validator_list].concat());
+
+    let bridge_bin: Bytes = Loader::default().load_binary("parent-bridge");
+    let bridge_out_point = context.deploy_cell(bridge_bin);
+    let bridge_script = context
+        .build_script(&bridge_out_point, type_script_args)
+        .expect("script");
+    let bridge_script_dep = CellDep::new_builder().out_point(bridge_out_point).build();
+
+    let input0_out_point = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .type_(Some(bridge_script.clone()).pack())
+            .build(),
+        Default::default(),
+    );
+
+    let input0 = CellInput::new_builder()
+        .previous_output(input0_out_point)
+        .build();
+    
+    let input_out_point1 = context.create_cell(
+        CellOutput::new_builder()
+            .capacity(10u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        Default::default(),
+    );
+
+    let input1 = CellInput::new_builder()
+        .previous_output(input_out_point1)
+        .build();
+
+    let outputs = vec![
+        CellOutput::new_builder()
+            .capacity(5u64.pack())
+            .lock(lock_script.clone())
+            .build(),
+        CellOutput::new_builder()
+            .capacity(1u64.pack())
+            .lock(lock_script.clone())
+            .build()
+    ];
+
+    let outputs_data = vec![Bytes::new(); 2];
+
+    // in combat the secp256 lock script would check the withness
+    // for a signature, hence we can't use an actionByte here.
+    let witnesses = vec![Bytes::from(&[2u8][..]), Bytes::new()];
+
+    // build transaction
+    let tx = TransactionBuilder::default()
+        .input(input0)
+        .input(input1)
+        .outputs(outputs)
+        .outputs_data(outputs_data.pack())
+        .cell_dep(lock_script_dep)
+        .cell_dep(bridge_script_dep)
+        .witnesses(witnesses.pack())
+        .build();
+    let tx = context.complete_tx(tx);
+
+    // run
+    let err = context
+        .verify_tx(&tx, MAX_CYCLES)
+        .unwrap_err();
+
+    assert_error_eq!(err, ScriptError::ValidationFailure(20));
 }
