@@ -161,6 +161,7 @@ impl StateTransition {
             // prepare and call payout
             0 => {
                 //check for correct Encoding of Witness
+                // 64 pubKey, 32 hash, 32 amount
                 if witness.len() >= 194 && (witness.len() - 129) % 65 != 0 {
                     return Err(Error::InvalidWitnessEncoding);
                 }
@@ -263,10 +264,12 @@ impl StateTransition {
                 for i in 0..(validators.len()) {
                     quorum.push(false);
                 }
+                debug!("{:?}", &sigs[0][..]);
                 // recover all signers
                 for i in 0..(sigs.len()) {
                     let preamble: &[u8] = b"\x19Ethereum Signed Message:\n128";
                     //let hashStruct = Keccak256::new().chain(&[preamble, &receipt[..]].concat()[..]);
+                    // add From to these errors
                     let sig: recoverable::Signature =
                         recoverable::Signature::try_from(&sigs[i][..]).unwrap();
                     let recovered_key = sig.recover_verify_key([preamble, &receipt[..]].concat().as_slice()).unwrap();
@@ -289,8 +292,9 @@ impl StateTransition {
                 }
                 // check capacity
                 let mut amount_array: [u8; 8] = [0u8; 8];
-                amount_array.copy_from_slice(&receipt[88..96]);
+                amount_array.copy_from_slice(&receipt[56..64]);
                 let amount = u64::from_be_bytes(amount_array);
+                debug!("{:?} {:?} {:?} ", cap_after, cap_before, amount);
                 if *cap_after != cap_before - amount {
                     return Err(Error::WithdrawalCapacityComputedIncorrectly);
                 }

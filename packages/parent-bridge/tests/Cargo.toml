@@ -10,3 +10,7 @@ ckb-tool = { git = "https://github.com/jjyr/ckb-tool.git", branch="master"}
 ckb-testtool = { git = "https://github.com/jjyr/ckb-tool.git", branch="master"}
 ckb-vm-definitions = "0.19.2"
 hex = "0.4.2"
+sha3 = { version="0.9", default-features = false }
+k256 = { version="0.5.10", default-features = false, features = ["ecdsa", "keccak256"] }
+rand_core = { version="0.5.1", features = ["getrandom"] }
+elliptic-curve = { version = "0.6.6", default-features = false }
