@@ -27,6 +27,7 @@ use ckb_std::{
     },
 };
 use core::convert::TryFrom;
+use core::convert::TryInto;
 use elliptic_curve::sec1::ToEncodedPoint;
 use k256::ecdsa::{recoverable};
 use sha3::{Digest, Keccak256};
@@ -43,6 +44,8 @@ fn entry() -> i8 {
     }
 }
 
+// TODO: this parameter should be moved to bridge args eventually
+const TIMEOUT: u64 = 100;
 const ADDRESS_LEN: usize = 20;
 
 /// Error
@@ -73,6 +76,10 @@ enum Error {
     SignatureQuorumNotMet = 22,
     WithdrawalCapacityComputedIncorrectly = 23,
     WithdrawalHashAlreadyUsed = 24,
+    WrongTrusteeInPayout = 25,
+    WrongPayoutDestination = 26,
+    WrongTimeout = 27,
+    ReceiptAlreadyUsed = 28,
 }
 
 impl From<SysError> for Error {
@@ -103,6 +110,7 @@ enum StateTransition {
         cap_after: u64,
         data_before: Vec<u8>,
         data_after: Vec<u8>,
+        trustee: [u8; 32],
     },
     CollectDeposits {
         total: u64,
@@ -161,7 +169,6 @@ impl StateTransition {
             // prepare and call payout
             0 => {
                 //check for correct Encoding of Witness
-                // 64 pubKey, 32 hash, 32 amount
                 if witness.len() >= 194 && (witness.len() - 129) % 65 != 0 {
                     return Err(Error::InvalidWitnessEncoding);
                 }
@@ -187,6 +194,7 @@ impl StateTransition {
                     cap_after: bridge_cap_after,
                     data_before: data_before,
                     data_after: data_after,
+                    trustee: trustee,
                 })
             }
             // prepare and call "collect deposits"
@@ -257,6 +265,7 @@ impl StateTransition {
                 cap_after,
                 data_before,
                 data_after,
+                trustee,
             } => {
                 let hash = Keccak256::digest(&receipt[..]);
                 let mut quorum = Vec::new();
@@ -264,12 +273,9 @@ impl StateTransition {
                 for i in 0..(validators.len()) {
                     quorum.push(false);
                 }
-                debug!("{:?}", &sigs[0][..]);
                 // recover all signers
                 for i in 0..(sigs.len()) {
                     let preamble: &[u8] = b"\x19Ethereum Signed Message:\n128";
-                    //let hashStruct = Keccak256::new().chain(&[preamble, &receipt[..]].concat()[..]);
-                    // add From to these errors
                     let sig: recoverable::Signature =
                         recoverable::Signature::try_from(&sigs[i][..]).unwrap();
                     let recovered_key = sig.recover_verify_key([preamble, &receipt[..]].concat().as_slice()).unwrap();
@@ -294,7 +300,6 @@ impl StateTransition {
                 let mut amount_array: [u8; 8] = [0u8; 8];
                 amount_array.copy_from_slice(&receipt[56..64]);
                 let amount = u64::from_be_bytes(amount_array);
-                debug!("{:?} {:?} {:?} ", cap_after, cap_before, amount);
                 if *cap_after != cap_before - amount {
                     return Err(Error::WithdrawalCapacityComputedIncorrectly);
                 }
@@ -311,19 +316,30 @@ impl StateTransition {
                 if lock_args.len() != 72 {
                     return Err(Error::WrongScriptArgsLength);
                 }
-                let _trustee_lock_hash = lock_args.slice(0..32);
-                // todo: check trustee_lock_hash
-                let _owner_lock_hash = lock_args.slice(32..64);
-                // todo: check owner_lock_hash agains &receipt[44..64]
-                // for that we need to hash the lock script with blake 🤷‍♂️
-                let _timeout = lock_args.slice(64..72);
-                // todo: check timout
+                let trustee_lock_hash = lock_args.slice(0..32);
+                if *trustee_lock_hash != trustee[..] {
+                    return Err(Error::WrongTrusteeInPayout);
+                }
+                let owner_lock_hash = lock_args.slice(32..64);
+                if *owner_lock_hash != receipt[64..96] {
+                    return Err(Error::WrongPayoutDestination);
+                }
+                let timeout_array : [u8; 8] = (&*lock_args.slice(64..72)).try_into().expect("could not parse timeout");
+                let timeout = u64::from_be_bytes(timeout_array);
+                if timeout != TIMEOUT {
+                    return Err(Error::WrongTimeout);
+                }
 
-                // todo: check that hash not included in data_before
                 let expected_data = [data_before, &hash[..]].concat();
                 if data_after != &expected_data {
                     return Err(Error::WithdrawalHashAlreadyUsed);
                 }
+
+                let used_hashes = parse_data(data_before);
+                if used_hashes.iter().any(|hash| hash == &hash[..].to_vec()) {
+                    return Err(Error::ReceiptAlreadyUsed);
+                }
+                
                 Ok(())
             }
             Self::CollectDeposits {
@@ -371,6 +387,14 @@ impl StateTransition {
             }
         }
     }
+}
+
+fn parse_data(data: &Vec<u8>) -> Vec<Vec<u8>> {
+    let mut parsed = Vec::new();
+    for i in 0..(data.len() / 32) {
+        parsed.push(data[(i*32)..(i*32)+32].to_vec());
+    }
+    parsed
 }
 
 fn slice_to_array_20(slice: &[u8]) -> [u8; 20] {
