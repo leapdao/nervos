@@ -15,6 +15,7 @@ fn main() {
     
     write_code_hash("deposit-lock", &mut out_file);
     write_code_hash("anyone-can-spend", &mut out_file);
+    write_code_hash("audit-delay", &mut out_file);
 }
 
 fn write_code_hash(name: &str, mut out_file: &mut BufWriter<File>) {
