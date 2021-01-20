@@ -60,6 +60,7 @@ struct PayoutTestParams<'a> {
     bridge_before_capacity: u64,
     change_capacity: u64,
     bridge_data_before: Bytes,
+    bridge_data_after: Bytes,
     funding_amount: u64,
     timeout: u64,
     error: Option<TransactionScriptError>,
@@ -186,7 +187,8 @@ fn test_payout(params: PayoutTestParams) {
     let witnesses = vec![bridge_witness, Bytes::new(), Bytes::new()];
 
     let outputs_data = vec![
-        Bytes::from(Vec::from(&Keccak256::digest(&params.receipt[..])[..])),
+        params.bridge_data_after,
+        // Bytes::from(Vec::from(&Keccak256::digest(&params.receipt[..])[..])),
         Bytes::new(),
         Bytes::new(),
     ];
@@ -247,6 +249,7 @@ fn test_unlock() {
         bridge_before_capacity: 100,
         change_capacity: 8,
         bridge_data_before: Bytes::default(),
+        bridge_data_after: Bytes::from(Vec::from(&Keccak256::digest(&receipt[..])[..])),
         funding_amount: 10,
         timeout: 100,
         error: None,
@@ -256,7 +259,92 @@ fn test_unlock() {
 }
 
 #[test]
-fn test_inlvalid_withdrawal_capacity() {
+fn test_unknown_receipt_signer() {
+    let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let bridge_state_id = [0u8; 36];
+
+    let payout_amount = 10;
+
+    let (priv_key, pub_key) = get_val_keys();
+    let (dummy_priv, dummy_pub) = get_val_keys();
+    let receipt_owner_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt_tx_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt = gen_receipt(payout_amount, receipt_owner_lock_hash, receipt_tx_hash);
+    let sig: recoverable::Signature = sign_receipt(receipt, priv_key);
+
+    let validator_address =
+        &Keccak256::digest(&dummy_pub.to_encoded_point(false).as_bytes()[1..65])[12..];
+    let validator_list = vec![validator_address];
+
+    let params = PayoutTestParams {
+        audit_delay_trustee_lock_hash: trustee_lock_hash,
+        audit_delay_owner_lock_hash: receipt_owner_lock_hash,
+        audit_delay_payout_amount: payout_amount,
+        bridge_state_id: bridge_state_id,
+        bridge_validators: validator_list,
+        bridge_trustee: trustee_lock_hash,
+        sig: sig,
+        receipt: receipt,
+        bridge_after_capacity: 90,
+        bridge_before_capacity: 100,
+        change_capacity: 8,
+        bridge_data_before: Bytes::default(),
+        bridge_data_after: Bytes::from(Vec::from(&Keccak256::digest(&receipt[..])[..])),
+        funding_amount: 10,
+        timeout: 100,
+        error: Some(ScriptError::ValidationFailure(21).input_type_script(0)),
+    };
+
+    test_payout(params);
+}
+
+#[test]
+fn test_signature_quorum_not_met() {
+    let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let bridge_state_id = [0u8; 36];
+
+    let payout_amount = 10;
+
+    let (priv_key, pub_key) = get_val_keys();
+    let (priv_key1, pub_key1) = get_val_keys();
+    let (priv_key2, pub_key2) = get_val_keys();
+    let receipt_owner_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt_tx_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt = gen_receipt(payout_amount, receipt_owner_lock_hash, receipt_tx_hash);
+    let sig: recoverable::Signature = sign_receipt(receipt, priv_key);
+
+    let validator_address =
+        &Keccak256::digest(&pub_key.to_encoded_point(false).as_bytes()[1..65])[12..];
+    let validator_address1 =
+        &Keccak256::digest(&pub_key1.to_encoded_point(false).as_bytes()[1..65])[12..];
+    let validator_address2 =
+        &Keccak256::digest(&pub_key2.to_encoded_point(false).as_bytes()[1..65])[12..];
+    let validator_list = vec![validator_address, validator_address1, validator_address2];
+
+    let params = PayoutTestParams {
+        audit_delay_trustee_lock_hash: trustee_lock_hash,
+        audit_delay_owner_lock_hash: receipt_owner_lock_hash,
+        audit_delay_payout_amount: payout_amount,
+        bridge_state_id: bridge_state_id,
+        bridge_validators: validator_list,
+        bridge_trustee: trustee_lock_hash,
+        sig: sig,
+        receipt: receipt,
+        bridge_after_capacity: 90,
+        bridge_before_capacity: 100,
+        change_capacity: 8,
+        bridge_data_before: Bytes::default(),
+        bridge_data_after: Bytes::from(Vec::from(&Keccak256::digest(&receipt[..])[..])),
+        funding_amount: 10,
+        timeout: 100,
+        error: Some(ScriptError::ValidationFailure(22).input_type_script(0)),
+    };
+
+    test_payout(params);
+}
+
+#[test]
+fn test_invalid_withdrawal_capacity() {
     let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
     let bridge_state_id = [0u8; 36];
 
@@ -285,6 +373,7 @@ fn test_inlvalid_withdrawal_capacity() {
         bridge_before_capacity: 100,
         change_capacity: 8,
         bridge_data_before: Bytes::default(),
+        bridge_data_after: Bytes::from(Vec::from(&Keccak256::digest(&receipt[..])[..])),
         funding_amount: 10,
         timeout: 100,
         error: Some(ScriptError::ValidationFailure(23).input_type_script(0)),
@@ -293,3 +382,197 @@ fn test_inlvalid_withdrawal_capacity() {
     test_payout(params);
 }
 
+#[test]
+fn test_data_updated_incorrectly() {
+    let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let bridge_state_id = [0u8; 36];
+
+    let payout_amount = 10;
+
+    let (priv_key, pub_key) = get_val_keys();
+    let receipt_owner_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt_tx_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt = gen_receipt(payout_amount, receipt_owner_lock_hash, receipt_tx_hash);
+    let sig: recoverable::Signature = sign_receipt(receipt, priv_key);
+
+    let validator_address =
+        &Keccak256::digest(&pub_key.to_encoded_point(false).as_bytes()[1..65])[12..];
+    let validator_list = vec![validator_address];
+
+    let params = PayoutTestParams {
+        audit_delay_trustee_lock_hash: trustee_lock_hash,
+        audit_delay_owner_lock_hash: receipt_owner_lock_hash,
+        audit_delay_payout_amount: payout_amount,
+        bridge_state_id: bridge_state_id,
+        bridge_validators: validator_list,
+        bridge_trustee: trustee_lock_hash,
+        sig: sig,
+        receipt: receipt,
+        bridge_after_capacity: 90,
+        bridge_before_capacity: 100,
+        change_capacity: 8,
+        bridge_data_before: Bytes::default(),
+        bridge_data_after: Bytes::new(),
+        funding_amount: 10,
+        timeout: 100,
+        error: Some(ScriptError::ValidationFailure(24).input_type_script(0)),
+    };
+
+    test_payout(params);
+}
+
+#[test]
+fn test_wrong_trustee_in_payout() {
+    let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let bridge_state_id = [0u8; 36];
+
+    let payout_amount = 10;
+
+    let (priv_key, pub_key) = get_val_keys();
+    let receipt_owner_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt_tx_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt = gen_receipt(payout_amount, receipt_owner_lock_hash, receipt_tx_hash);
+    let sig: recoverable::Signature = sign_receipt(receipt, priv_key);
+
+    let validator_address =
+        &Keccak256::digest(&pub_key.to_encoded_point(false).as_bytes()[1..65])[12..];
+    let validator_list = vec![validator_address];
+
+    let params = PayoutTestParams {
+        audit_delay_trustee_lock_hash: trustee_lock_hash,
+        audit_delay_owner_lock_hash: receipt_owner_lock_hash,
+        audit_delay_payout_amount: payout_amount,
+        bridge_state_id: bridge_state_id,
+        bridge_validators: validator_list,
+        bridge_trustee: receipt_owner_lock_hash,
+        sig: sig,
+        receipt: receipt,
+        bridge_after_capacity: 90,
+        bridge_before_capacity: 100,
+        change_capacity: 8,
+        bridge_data_before: Bytes::default(),
+        bridge_data_after: Bytes::from(Vec::from(&Keccak256::digest(&receipt[..])[..])),
+        funding_amount: 10,
+        timeout: 100,
+        error: Some(ScriptError::ValidationFailure(25).input_type_script(0)),
+    };
+
+    test_payout(params);
+}
+
+#[test]
+fn test_wrong_payout_destination() {
+    let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let bridge_state_id = [0u8; 36];
+
+    let payout_amount = 10;
+
+    let (priv_key, pub_key) = get_val_keys();
+    let receipt_owner_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt_tx_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt = gen_receipt(payout_amount, trustee_lock_hash, receipt_tx_hash);
+    let sig: recoverable::Signature = sign_receipt(receipt, priv_key);
+
+    let validator_address =
+        &Keccak256::digest(&pub_key.to_encoded_point(false).as_bytes()[1..65])[12..];
+    let validator_list = vec![validator_address];
+
+    let params = PayoutTestParams {
+        audit_delay_trustee_lock_hash: trustee_lock_hash,
+        audit_delay_owner_lock_hash: receipt_owner_lock_hash,
+        audit_delay_payout_amount: payout_amount,
+        bridge_state_id: bridge_state_id,
+        bridge_validators: validator_list,
+        bridge_trustee: trustee_lock_hash,
+        sig: sig,
+        receipt: receipt,
+        bridge_after_capacity: 90,
+        bridge_before_capacity: 100,
+        change_capacity: 8,
+        bridge_data_before: Bytes::default(),
+        bridge_data_after: Bytes::from(Vec::from(&Keccak256::digest(&receipt[..])[..])),
+        funding_amount: 10,
+        timeout: 100,
+        error: Some(ScriptError::ValidationFailure(26).input_type_script(0)),
+    };
+
+    test_payout(params);
+}
+
+#[test]
+fn test_wrong_timeout() {
+    let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let bridge_state_id = [0u8; 36];
+
+    let payout_amount = 10;
+
+    let (priv_key, pub_key) = get_val_keys();
+    let receipt_owner_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt_tx_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt = gen_receipt(payout_amount, receipt_owner_lock_hash, receipt_tx_hash);
+    let sig: recoverable::Signature = sign_receipt(receipt, priv_key);
+
+    let validator_address =
+        &Keccak256::digest(&pub_key.to_encoded_point(false).as_bytes()[1..65])[12..];
+    let validator_list = vec![validator_address];
+
+    let params = PayoutTestParams {
+        audit_delay_trustee_lock_hash: trustee_lock_hash,
+        audit_delay_owner_lock_hash: receipt_owner_lock_hash,
+        audit_delay_payout_amount: payout_amount,
+        bridge_state_id: bridge_state_id,
+        bridge_validators: validator_list,
+        bridge_trustee: trustee_lock_hash,
+        sig: sig,
+        receipt: receipt,
+        bridge_after_capacity: 90,
+        bridge_before_capacity: 100,
+        change_capacity: 8,
+        bridge_data_before: Bytes::default(),
+        bridge_data_after: Bytes::from(Vec::from(&Keccak256::digest(&receipt[..])[..])),
+        funding_amount: 10,
+        timeout: 101,
+        error: Some(ScriptError::ValidationFailure(27).input_type_script(0)),
+    };
+
+    test_payout(params);
+}
+
+#[test]
+fn test_receipt_already_used() {
+    let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let bridge_state_id = [0u8; 36];
+
+    let payout_amount = 10;
+
+    let (priv_key, pub_key) = get_val_keys();
+    let receipt_owner_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt_tx_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt = gen_receipt(payout_amount, receipt_owner_lock_hash, receipt_tx_hash);
+    let sig: recoverable::Signature = sign_receipt(receipt, priv_key);
+
+    let validator_address =
+        &Keccak256::digest(&pub_key.to_encoded_point(false).as_bytes()[1..65])[12..];
+    let validator_list = vec![validator_address];
+
+    let params = PayoutTestParams {
+        audit_delay_trustee_lock_hash: trustee_lock_hash,
+        audit_delay_owner_lock_hash: receipt_owner_lock_hash,
+        audit_delay_payout_amount: payout_amount,
+        bridge_state_id: bridge_state_id,
+        bridge_validators: validator_list,
+        bridge_trustee: trustee_lock_hash,
+        sig: sig,
+        receipt: receipt,
+        bridge_after_capacity: 90,
+        bridge_before_capacity: 100,
+        change_capacity: 8,
+        bridge_data_before: Bytes::from(Vec::from(&Keccak256::digest(&receipt[..])[..])),
+        bridge_data_after: Bytes::from([&Keccak256::digest(&receipt[..])[..], &Keccak256::digest(&receipt[..])[..]].concat()),
+        funding_amount: 10,
+        timeout: 100,
+        error: Some(ScriptError::ValidationFailure(28).input_type_script(0)),
+    };
+
+    test_payout(params);
+}

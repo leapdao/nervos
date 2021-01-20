@@ -75,7 +75,7 @@ enum Error {
     UnknownReceiptSigner = 21,
     SignatureQuorumNotMet = 22,
     WithdrawalCapacityComputedIncorrectly = 23,
-    WithdrawalHashAlreadyUsed = 24,
+    DataUpdatedIncorrectly = 24, 
     WrongTrusteeInPayout = 25,
     WrongPayoutDestination = 26,
     WrongTimeout = 27,
@@ -99,6 +99,7 @@ type Address = [u8; ADDRESS_LEN];
 type Hash = [u8;32];
 type Receipt = [u8; 128];
 type Signature = [u8; 65];
+
 
 enum StateTransition {
     DeployBridge { validators: Vec<Address>, id: Bytes , trustee: Hash},
@@ -138,7 +139,7 @@ impl StateTransition {
             return Err(Error::EmptyValidatorList);
         };
         let state_id: Bytes = get_state_id()?;
-        debug!("validators: {:?}", validators);
+        // debug!("validators: {:?}", validators);
         let trustee = parse_trustee_from_args(&*script_args)?;
 
         // check state ID
@@ -332,11 +333,11 @@ impl StateTransition {
 
                 let expected_data = [data_before, &hash[..]].concat();
                 if data_after != &expected_data {
-                    return Err(Error::WithdrawalHashAlreadyUsed);
+                    return Err(Error::DataUpdatedIncorrectly);
                 }
 
                 let used_hashes = parse_data(data_before);
-                if used_hashes.iter().any(|hash| hash == &hash[..].to_vec()) {
+                if used_hashes.iter().any(|h| h == &hash[..].to_vec()) {
                     return Err(Error::ReceiptAlreadyUsed);
                 }
                 
