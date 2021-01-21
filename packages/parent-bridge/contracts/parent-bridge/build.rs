@@ -1,3 +1,4 @@
+
 pub use blake2b_rs::{Blake2b, Blake2bBuilder};
 
 use std::{
@@ -21,7 +22,7 @@ fn main() {
 fn write_code_hash(name: &str, mut out_file: &mut BufWriter<File>) {
 
     // TODO - make this work both for debug and release
-    let path = format!("../../build/debug/{}", name);
+    let path = format!("../../build/release/{}", name);
 
     let mut buf = [0u8; BUF_SIZE];
 

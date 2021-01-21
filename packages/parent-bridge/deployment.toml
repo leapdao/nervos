@@ -12,6 +12,11 @@ location = { file = "build/release/deposit-lock" }
 name = "anyone-can-spend"
 enable_type_id = false
 location = { file = "build/release/anyone-can-spend" }
+
+[[cells]]
+name = "audit-delay"
+enable_type_id = false
+location = { file = "build/release/audit-delay" }
 #
 # # reference to on-chain cells
 # [[cells]]
