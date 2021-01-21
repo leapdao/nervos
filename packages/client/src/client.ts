@@ -11,12 +11,14 @@ interface BridgeConfig {
   SIGHASH_DEP: CellDep,
   BRIDGE_DEP: CellDep,
   DEPOSIT_DEP: CellDep,
+  AUDIT_DELAY_DEP: CellDep,
   ANYONE_CAN_PAY_DEP: CellDep,
   ANYONE_CAN_PAY_SCRIPT: Script,
   BRIDGE_SCRIPT?: Script,
   SIGHASH_CODE_HASH: string,
   BRIDGE_CODE_HASH: string,
   DEPOSIT_CODE_HASH: string,
+  AUDIT_DELAY_CODE_HASH: string,
   ACCOUNT_LOCK_ARGS: string,
   RPC: string,
   INDEXER_DATA_PATH: string,
@@ -26,6 +28,7 @@ interface BridgeState {
   stateid: string,
   validators: Array<string>,
   capacity: bigint,
+  trustee: string,
 }
 
 const WITNESS_TEMPLATE = "0x55000000100000005500000055000000410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -52,7 +55,7 @@ class BridgeClient {
   // add close call on client
   // actually await txes
 
-  async deploy(fee: bigint, initialCapacity: bigint, validators: Array<string>, sign: (skeleton: TransactionSkeletonType) => Promise<Array<string>>): Promise<string> {
+  async deploy(fee: bigint, initialCapacity: bigint, validators: Array<string>, trustee: string, sign: (skeleton: TransactionSkeletonType) => Promise<Array<string>>): Promise<string> {
     const collector = new CellCollector(this.indexer, {
       lock: {
         code_hash: this.CONFIG.SIGHASH_CODE_HASH,
@@ -79,7 +82,7 @@ class BridgeClient {
     const bridgeScript = {
       code_hash: this.CONFIG.BRIDGE_CODE_HASH,
       hash_type: "data" as HashType,
-      args: stateId + validators.map(v => v.replace("0x", "")).reduce((acc, cv) => cv + acc, ""),
+      args: stateId + trustee.replace("0x", "") + validators.map(v => v.replace("0x", "")).reduce((acc, cv) => cv + acc, ""),
     }
     const bridgeOutput = {
       cell_output: {
@@ -214,6 +217,11 @@ class BridgeClient {
     return txHash;
   }
 
+  async payout(): Promise<string> {
+
+    return "";
+  }
+
   async getDeposits(): Promise<Array<Cell>> {
     const collector = new CellCollector(this.indexer, {
       lock: {
@@ -264,7 +272,8 @@ class BridgeClient {
     }
     const typeArgs = latestCell.cell_output.type.args;
     const stateid = typeArgs.slice(0, 74);
-    const validatorsString = typeArgs.slice(74);
+    const trustee = typeArgs.slice(74, 138);
+    const validatorsString = typeArgs.slice(138);
     const validators = [];
     for (let i = 0; i < validatorsString.length / 40; i++) {
       validators.push("0x" + validatorsString.slice(i * 40, i + 40));
@@ -273,6 +282,7 @@ class BridgeClient {
       stateid: stateid,
       validators: validators,
       capacity: BigInt(latestCell.cell_output.capacity),
+      trustee: trustee,
     };
   }
 

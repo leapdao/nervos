@@ -15,5 +15,3 @@ template_type = "Rust"
 [[contracts]]
 name = "parent-bridge"
 template_type = "Rust"
-
-

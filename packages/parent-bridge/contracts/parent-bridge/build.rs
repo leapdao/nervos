@@ -1,3 +1,4 @@
+
 pub use blake2b_rs::{Blake2b, Blake2bBuilder};
 
 use std::{
