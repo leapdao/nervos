@@ -18,21 +18,28 @@ const myConfig: BridgeConfig = {
   },
   BRIDGE_DEP: {
     out_point: {
-      tx_hash: "0xd112a85007bc9738b367d3252e5137838d118aa4f26f23eb9cfb65b89aef38bc",
+      tx_hash: "0x65d29b00078aa7ce884c405f65ee9c6c9694925bc0c1df64b447078888b1922d",
       index: "0x0",
     },
     dep_type: "code",
   },
   DEPOSIT_DEP: {
     out_point: {
-      tx_hash: "0x620ef79089cbdcef8007c64cad92189594c724787378c8771306b00ed386d920",
+      tx_hash: "0xb9cb4d5c92e7ee1b59e4163c539819073ef47dc752ab774817b53a64f6ec126c",
+      index: "0x0",
+    },
+    dep_type: "code",
+  },
+  AUDIT_DELAY_DEP: {
+    out_point: {
+      tx_hash: "0xa418913303f3c5b2b4b318b72026af42242578745fa7ec57e1929c99ae5b2884",
       index: "0x0",
     },
     dep_type: "code",
   },
   ANYONE_CAN_PAY_DEP: {
     out_point: {
-      tx_hash: "0x30bc9ebdbbdec0f08523c50b4d6ee4d189e1dfb9ee605e635b7d431f2455bc60",
+      tx_hash: "0x3c9264cc331292e664615ea545dd5848ada69a1a82cbf01ef07827f9542cf79e",
       index: "0x0",
     },
     dep_type: "code",
@@ -50,7 +57,8 @@ const myConfig: BridgeConfig = {
   DEPOSIT_CODE_HASH: "0xd7aa21f5395d0bb03935e88ccd46fd34bd97e1a09944cec3fcb59c340deba6cf",
   SIGHASH_CODE_HASH: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
   ACCOUNT_LOCK_ARGS: "0xa01b3e5d05e2efeb707d3ca0e9fcf9373e87693d",
-  BRIDGE_CODE_HASH: "0xc3b8602acaf51a50e6eee26328b73358e4b65e0d56cac0978dc297d8e2a6b4ba",
+  BRIDGE_CODE_HASH: "0xd9d4f57607e5f54ef9c9edcf8c7fdb4304da1d83edfdea258421bc940eb3013f",
+  AUDIT_DELAY_CODE_HASH: "0x0623a96cb7b6ca9dea9ff7ba15fe1fb172852ca11ed8d70124787056aac4d660",
   RPC: "http://127.0.0.1:8114",
   INDEXER_DATA_PATH: "./indexed-data",
 }
@@ -85,10 +93,11 @@ const sign = async (skeleton: TransactionSkeletonType): Promise<Array<string>> =
 }
 
 const validators: Array<string> = ["0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"];
+const trustee = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
 const sleep = (t: number) => new Promise((resolve) => setTimeout(resolve, t));
 
 async function main() {
-  await client.deploy(10000n, 1000000000000n, validators, signWithPriv);
+  await client.deploy(10000n, 1000000000000n, validators, trustee, signWithPriv);
   console.log(client.BRIDGE_SCRIPT);
   console.log(await client.getLatestBridgeState());
   await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, signWithPriv);
