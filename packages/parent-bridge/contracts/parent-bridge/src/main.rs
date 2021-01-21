@@ -75,7 +75,11 @@ enum Error {
     UnknownReceiptSigner = 21,
     SignatureQuorumNotMet = 22,
     WithdrawalCapacityComputedIncorrectly = 23,
+<<<<<<< HEAD
     DataUpdatedIncorrectly = 24, 
+=======
+    WithdrawalHashAlreadyUsed = 24,
+>>>>>>> master
     WrongTrusteeInPayout = 25,
     WrongPayoutDestination = 26,
     WrongTimeout = 27,
@@ -333,11 +337,19 @@ impl StateTransition {
 
                 let expected_data = [data_before, &hash[..]].concat();
                 if data_after != &expected_data {
+<<<<<<< HEAD
                     return Err(Error::DataUpdatedIncorrectly);
                 }
 
                 let used_hashes = parse_data(data_before);
                 if used_hashes.iter().any(|h| h == &hash[..].to_vec()) {
+=======
+                    return Err(Error::WithdrawalHashAlreadyUsed);
+                }
+
+                let used_hashes = parse_data(data_before);
+                if used_hashes.iter().any(|hash| hash == &hash[..].to_vec()) {
+>>>>>>> master
                     return Err(Error::ReceiptAlreadyUsed);
                 }
                 

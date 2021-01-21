@@ -9,12 +9,11 @@ name = "deposit-lock"
 template_type = "Rust"
 
 [[contracts]]
-name = "parent-bridge"
-template_type = "Rust"
-
-[[contracts]]
 name = "audit-delay"
 template_type = "Rust"
 
+[[contracts]]
+name = "parent-bridge"
+template_type = "Rust"
 
 
