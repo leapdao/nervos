@@ -1,5 +1,5 @@
 import { web3, TWO_ETH } from './web3';
-import Config from '../../config.json';
+import Config from '../../RedisConfig';
 
 // TODO:: remove once tests are up won't be needed
 const simulate = async () => {

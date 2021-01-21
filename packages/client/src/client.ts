@@ -6,6 +6,7 @@ import { List } from "immutable";
 import { secp256k1Blake160 } from "@ckb-lumos/common-scripts";
 import { initializeConfig } from "@ckb-lumos/config-manager";
 import { BridgeEventEmitter, Subscriber, BridgeEvent } from "./events";
+import fs from "fs";
 
 interface BridgeConfig {
   SIGHASH_DEP: CellDep,
@@ -116,6 +117,7 @@ class BridgeClient {
     const txHash = await this.rpc.send_transaction(tx);
 
     // this feels very hackish
+    fs.writeFileSync('./bridgeScript.json', JSON.stringify(bridgeScript));
     this.eventEmitter.bridgeScript = bridgeScript;
     this.eventEmitter.start();
 

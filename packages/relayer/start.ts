@@ -4,10 +4,10 @@ const RSMQPromise = require('rsmq-promise'); // TODO:: needs wrapper type
 
 import { gasPrice, web3 } from './src/utils/web3';
 const Contract = require('web3-eth-contract');
-Contract.setProvider('ws://localhost:8546');
+Contract.setProvider('http://localhost:8545');
 
 import BridgeContract from '../childchain/build/contracts/Bridge.json';
-import Config from './config.json';
+import Config from './RedisConfig';
 import EvmRelay from './src/evm';
 import CkbRelay from './src/ckb';
 
@@ -64,15 +64,13 @@ const startService = async () => {
   const evmQueue = await startQueue(Config.address);
   const evmService = new EvmRelay(evmQueue, db, contract, accounts[0]);
 
-  // evmService.handle(); // handle relay from ckb
-  // TODO:: move to cron job 30 seconds 
-  evmService.listen(); // listen for contract events 
+  evmService.handle(); // handle relay from ckb
+  // evmService.listen(); // listen for contract events 
 
-  // TODO:: uncomment once connected to lumos functions
-  // const ckbQueue = await startQueue(Config.bridgeHash);
-  // const ckbService = new CkbRelay(ckbQueue, accounts[0]);
-  // ckbService.listen(); // listen for lock events in bridge contract
-  // ckbService.handle(); // handle relay from emv
+  const ckbQueue = await startQueue(Config.bridgeHash);
+  const ckbService = new CkbRelay(ckbQueue, accounts[0]);
+  ckbService.listen(); // listen for lock events in bridge contract
+  // ckbService.handle(); // handle relay from evm
 }
 
 startService();

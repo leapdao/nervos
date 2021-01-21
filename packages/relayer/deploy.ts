@@ -5,7 +5,7 @@ import BridgeContract from '../childchain/build/contracts/Bridge.json';
 const Contract = require('web3-eth-contract');
 
 // set provider for all later instances to use
-Contract.setProvider('ws://localhost:8546')
+Contract.setProvider('http://localhost:8545')
 
 const deployContract = async () => {
     let accounts = await web3.eth.getAccounts();

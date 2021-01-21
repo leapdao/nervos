@@ -7,6 +7,8 @@ import { RPC } from "ckb-js-toolkit";
 import readline from "readline";
 import { TransactionSkeletonType } from "@ckb-lumos/helpers";
 import { signWithPriv } from "./sign";
+import fs from "fs";
+// import { Address, AddressType } from '@lay2/pw-core';
 
 const myConfig: BridgeConfig = {
   SIGHASH_DEP: {
@@ -18,28 +20,28 @@ const myConfig: BridgeConfig = {
   },
   BRIDGE_DEP: {
     out_point: {
-      tx_hash: "0x65d29b00078aa7ce884c405f65ee9c6c9694925bc0c1df64b447078888b1922d",
+      tx_hash: "0x28b5aab7c243844d968f69a5ca67701e44b3ce0f6b210e90970facd819a9c4d8",
       index: "0x0",
     },
     dep_type: "code",
   },
   DEPOSIT_DEP: {
     out_point: {
-      tx_hash: "0xb9cb4d5c92e7ee1b59e4163c539819073ef47dc752ab774817b53a64f6ec126c",
+      tx_hash: "0xc6a297f305b12375e38dcd1cf9cfb0de63c1123963ab14cf0a7982a29c7f2f8c",
       index: "0x0",
     },
     dep_type: "code",
   },
   AUDIT_DELAY_DEP: {
     out_point: {
-      tx_hash: "0xa418913303f3c5b2b4b318b72026af42242578745fa7ec57e1929c99ae5b2884",
+      tx_hash: "0xedb9d970ea568de4bd42e9175e26b144795f24f50ea74809cd77f8cd9c2bb164",
       index: "0x0",
     },
     dep_type: "code",
   },
   ANYONE_CAN_PAY_DEP: {
     out_point: {
-      tx_hash: "0x3c9264cc331292e664615ea545dd5848ada69a1a82cbf01ef07827f9542cf79e",
+      tx_hash: "0x56076842356bde5a466acd50254fbbd05bf9156129755e9916d3211857959bfc",
       index: "0x0",
     },
     dep_type: "code",
@@ -56,7 +58,7 @@ const myConfig: BridgeConfig = {
   // },
   DEPOSIT_CODE_HASH: "0xd7aa21f5395d0bb03935e88ccd46fd34bd97e1a09944cec3fcb59c340deba6cf",
   SIGHASH_CODE_HASH: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
-  ACCOUNT_LOCK_ARGS: "0xa01b3e5d05e2efeb707d3ca0e9fcf9373e87693d",
+  ACCOUNT_LOCK_ARGS: "0xdb223ec5ff9194b9e2940ddf1b6f85521b9f9336",
   BRIDGE_CODE_HASH: "0xd9d4f57607e5f54ef9c9edcf8c7fdb4304da1d83edfdea258421bc940eb3013f",
   AUDIT_DELAY_CODE_HASH: "0x0623a96cb7b6ca9dea9ff7ba15fe1fb172852ca11ed8d70124787056aac4d660",
   RPC: "http://127.0.0.1:8114",
@@ -67,7 +69,7 @@ const rpc = new RPC(myConfig.RPC);
 const indexer = new Indexer(myConfig.RPC, myConfig.INDEXER_DATA_PATH);
 const emitter = new BridgeEventEmitter(myConfig.BRIDGE_SCRIPT as Script, myConfig, indexer, rpc);
 const client = new BridgeClient(myConfig, indexer, rpc, emitter);
-emitter.subscribe((e: BridgeEvent) => { console.log("EVENT!!!!!"); console.log(e) });
+// emitter.subscribe((e: BridgeEvent) => { console.log("EVENT!!!!!"); console.log(e) });
 // emitter.start();
 
 const sign = async (skeleton: TransactionSkeletonType): Promise<Array<string>> => {
@@ -97,7 +99,12 @@ const trustee = "0xddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 const sleep = (t: number) => new Promise((resolve) => setTimeout(resolve, t));
 
 async function main() {
-  await client.deploy(10000n, 1000000000000n, validators, trustee, signWithPriv);
+  if (!fs.existsSync('./bridgeScript.json')) {
+    await client.deploy(10000n, 1000000000000n, validators, trustee, signWithPriv);
+  } else {
+    client.BRIDGE_SCRIPT = JSON.parse(fs.readFileSync('./bridgeScript.json', 'utf8'));
+  }
+  
   console.log(client.BRIDGE_SCRIPT);
   console.log(await client.getLatestBridgeState());
   await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, signWithPriv);

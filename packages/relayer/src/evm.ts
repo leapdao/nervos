@@ -1,8 +1,8 @@
 import { web3 } from './utils/web3';
 import { LockReceipt } from './utils/types';
 const Contract = require('web3-eth-contract');
-Contract.setProvider('ws://localhost:8546');
-import Config from '../config.json';
+Contract.setProvider('http://localhost:8545');
+import Config from '../RedisConfig';
 
 class EVMRelay {
     db: any;
@@ -44,10 +44,20 @@ class EVMRelay {
     }
 
     async _collectLock(receipt: LockReceipt) {
+        receipt.user = this.validatorAddress; // TODO:: remove we need valid eth address
+        let collected = true;
         const signature = await this._getSignature(receipt);
-        return await this.contractInstance.methods
+        await this.contractInstance.methods
             .collect(receipt, signature)
-            .call();
+            .send()
+            .on('receipt', function (receipt:any) {
+                console.log(receipt);
+            })
+            .on('error', function (error: any) {
+                collected = false;
+                console.log(error); // known internal error for same transaction hash
+            });
+        return collected;
     }
 
     // TODO:: check on failure of collecting signatures
@@ -55,7 +65,10 @@ class EVMRelay {
         const signature = await this._getSignature(receipt);
         this.contractInstance.methods
             .collect(receipt, signature)
-            .call();
+            .send()
+            .on('receipt', function (receipt:any) {
+                console.log(receipt);
+            });
     }
 
     async _processEvents(localHeight: number, remoteHeight: number) {
@@ -63,37 +76,39 @@ class EVMRelay {
             fromBlock: localHeight,
             toBlock: remoteHeight
         }, (error: any, event: any) => {
-                event.forEach((x: any) => {
-                if (x.event === 'Burn') {
-                    this._collectUnLock({
-                        isLock: false,
-                        user: x.returnValues.sender,
-                        amount: x.returnValues.value,
-                        txHash: x.transactionHash
-                    });
-                } else if (x.event === 'BurnQuorom') {
-                    this._relayUnLock({
-                        user: x.returnValues.from,
-                        amount: x.returnValues.amount,
-                        txHash: x.returnValues.txHash,
-                        sigs: x.returnValues.from
+                if (event) {
+                    event.forEach((x: any) => {
+                        if (x.event === 'Burn') {
+                            this._collectUnLock({
+                                isLock: false,
+                                user: x.returnValues.sender,
+                                amount: x.returnValues.value,
+                                txHash: x.transactionHash
+                            });
+                        } else if (x.event === 'BurnQuorom') {
+                            this._relayUnLock({
+                                user: x.returnValues.from,
+                                amount: x.returnValues.amount,
+                                txHash: x.returnValues.txHash,
+                                sigs: x.returnValues.from
+                            });
+                        }
                     });
                 }
-            });
         });
     }
 
     async _processLockRelay(message: any) {
-        // Structure of message.message should always be json string of LockScript
+        // Structure of message.message should always be json string of receipt object
         const result = await this._collectLock(JSON.parse(message.message));
-        if (result) { // TODO:: check if successfull
+        if (result) {
           await this.queueRunner.deleteMessage({ qname: this.bridgeAddress, id: message.id });
         }
     }
 
     async _relayUnLock(evmEvent: any) {
         return this.queueRunner.sendMessage({
-            qname: this.bridgeHash, // Should be ckb queue name bridge hash
+            qname: this.bridgeHash, // ckb queue name is the bridge hash
             message: JSON.stringify(evmEvent)
         });
     }
@@ -111,7 +126,7 @@ class EVMRelay {
 
         setTimeout(async () => {
             await this.listen();
-        }, 30000)// listen again after 30 seconds
+        }, 30000); // listen again after 30 seconds
     }
 
     /**
