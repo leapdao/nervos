@@ -1,5 +1,5 @@
 
-import { BridgeClient, BridgeConfig } from "./client";
+import { BridgeClient, BridgeConfig, Receipt } from "./client";
 import { Script } from "@ckb-lumos/base";
 import { BridgeEventEmitter, BridgeEvent } from "./events";
 import { Indexer } from "@ckb-lumos/indexer";
@@ -7,6 +7,8 @@ import { RPC } from "ckb-js-toolkit";
 import readline from "readline";
 import { TransactionSkeletonType } from "@ckb-lumos/helpers";
 import { signWithPriv } from "./sign";
+import { ethers } from 'ethers';
+import { hashMessage } from "@ethersproject/hash";
 
 const myConfig: BridgeConfig = {
   SIGHASH_DEP: {
@@ -54,6 +56,11 @@ const myConfig: BridgeConfig = {
   //   hash_type: 'data',
   //   args: '0x4b45e761b61f887053c417cac7ae7262455385f891007dd08233f4efd7abdc7f00000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
   // },
+  BRIDGE_SCRIPT: {
+    code_hash: '0xd9d4f57607e5f54ef9c9edcf8c7fdb4304da1d83edfdea258421bc940eb3013f',
+    hash_type: 'data',
+    args: '0xe658991e1b402bfe94196660f97c8bdf745613b00122c713c34274407cfaf3be00000000ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+  },
   DEPOSIT_CODE_HASH: "0xd7aa21f5395d0bb03935e88ccd46fd34bd97e1a09944cec3fcb59c340deba6cf",
   SIGHASH_CODE_HASH: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
   ACCOUNT_LOCK_ARGS: "0xa01b3e5d05e2efeb707d3ca0e9fcf9373e87693d",
@@ -61,6 +68,7 @@ const myConfig: BridgeConfig = {
   AUDIT_DELAY_CODE_HASH: "0x0623a96cb7b6ca9dea9ff7ba15fe1fb172852ca11ed8d70124787056aac4d660",
   RPC: "http://127.0.0.1:8114",
   INDEXER_DATA_PATH: "./indexed-data",
+  TIMEOUT: 100n,
 }
 
 const rpc = new RPC(myConfig.RPC);
@@ -92,7 +100,9 @@ const sign = async (skeleton: TransactionSkeletonType): Promise<Array<string>> =
   return sigs;
 }
 
-const validators: Array<string> = ["0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"];
+const validator = ethers.Wallet.createRandom();
+const validators: Array<string> = [validator.address];
+// const validators: Array<string> = [ethers.constants.HashZero];
 const trustee = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
 const sleep = (t: number) => new Promise((resolve) => setTimeout(resolve, t));
 
@@ -111,4 +121,75 @@ async function main() {
   console.log(await client.getLatestBridgeState());
 }
 
-main();
+async function makeReceipt(amount: bigint, txHash: string, receiver: string): Promise<Receipt> {
+  const raw = ethers.utils.concat([
+    ethers.constants.HashZero,
+    ethers.utils.hexZeroPad("0x" + amount.toString(16), 32),
+    receiver,
+    txHash,
+  ]);
+  const sig = await validator.signMessage(raw);
+  const mapV: { [index: string]: string } = {
+    "1b": "01",
+    "1c": "00",
+  }
+  return {
+    amount: amount,
+    txHash: txHash,
+    receiver: receiver,
+    raw: ethers.utils.hexlify(raw),
+    sigs: sig.slice(0, sig.length - 2) + mapV[sig.slice(sig.length - 2)],
+  };
+}
+
+function replaceChar(origString: string, replaceChar: string, index: number) {
+  let firstPart = origString.substr(0, index);
+  let lastPart = origString.substr(index + 1);
+
+  let newString = firstPart + replaceChar + lastPart;
+  return newString;
+}
+
+
+async function payout() {
+  const CK_BYTE = 100000000n;
+  const CKB_32 = 32n * CK_BYTE;
+  const receiver = "0x0efdcdec4f8490c951e4a225db3bce7274278b5d05be24d7f692454488412ad7";
+  const receipt = await makeReceipt(100n * CKB_32, ethers.constants.HashZero, receiver);
+  console.log(receipt.raw);
+
+
+  let privateKey = '0x278a5de700e29faae8e40e366ec5012b5ec63d36ec77e8a2417154cc1d25383f';
+  let wallet = new ethers.Wallet(privateKey);
+  console.log("KEYS:");
+  console.log("address ", wallet.address);
+  console.log("pubkey ", wallet._signingKey().publicKey);
+  console.log("privkey ", privateKey);
+
+  console.log("SIGS");
+  const sig = await wallet.signMessage(ethers.utils.arrayify(receipt.raw));
+  console.log(sig);
+  console.log(ethers.utils.splitSignature(sig));
+
+  console.log("RECEIPT HASH");
+  console.log(hashMessage(ethers.utils.arrayify(receipt.raw)));
+
+  // console.log("RANDOM BYTES: ", ethers.utils.arrayify(privateKey));
+  // console.log("RANDOM HASH: ", ethers.utils.keccak256(ethers.utils.arrayify(privateKey)));
+  return;
+  // return;
+  // const receipt1 = {
+  //   amount: CKB_32 * 100n,
+  //   raw: "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000abca24c5aae65749b577f7405d20f99423295999e2104503614bc098cf3d26186e5785dc9695b7fbfcbfd09843ef338ca8b54c2f8b7da2f4d8a20c23acd7cdc87",
+  //   receiver: receiver,
+  //   sigs: "0xea25f87dba5122fddffcedbd393b7eac7930d9b05f1ab4f50a93e0615f15e2dd4449c860af32af1b23321593b030bf839b2b8eedfc761b319d0efe15a3193e2800",
+  //   txHash: ethers.constants.HashZero,
+  // };
+  // console.log(receipt1);
+  // return;
+  console.log(await client.getLatestBridgeState());
+  await client.payout(receipt, 10000n, myConfig.ACCOUNT_LOCK_ARGS, signWithPriv);
+}
+
+// main();
+payout();

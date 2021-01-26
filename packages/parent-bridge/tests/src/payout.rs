@@ -3,17 +3,24 @@ use ckb_testtool::context::Context;
 use ckb_tool::ckb_types::{bytes::Bytes, core::TransactionBuilder, packed::*, prelude::*};
 use ckb_tool::{ckb_error::assert_error_eq, ckb_script::{TransactionScriptError, ScriptError}};
 use elliptic_curve::sec1::ToEncodedPoint;
+use elliptic_curve::FieldBytes;
+// use signature::signer::DigestSigner;
 use hex::FromHex;
 use k256::{
     ecdsa::{
         recoverable,
-        signature::{Signature, Signer},
+        signature::{Signature, Signer, DigestSigner},
         SigningKey, VerifyKey,
     },
+    Secp256k1,
+    
 };
 use rand::Rng;
 use rand_core::OsRng;
-use sha3::{Digest, Keccak256}; // requires 'getrandom' feature
+use sha3::{Digest, Keccak256, Keccak256Full}; // requires 'getrandom' feature
+use tiny_keccak::Keccak;
+use tiny_keccak::Hasher;
+use secp256k1::{Message, SecretKey, PublicKey, sign, Signature as Sig, RecoveryId};
 
 const MAX_CYCLES: u64 = 100_000_000;
 
@@ -41,10 +48,31 @@ fn gen_receipt(amount: u64, lock_hash: [u8; 32], tx_hash: [u8; 32]) -> [u8; 128]
     receipt
 }
 
+// fn sign_receipt(receipt: [u8; 128], priv_key: SigningKey) -> recoverable::Signature {
+//     let preamble: &[u8] = b"\x19Ethereum Signed Message:\n128";
+//     let msg: Vec<u8> = [preamble, &receipt[..]].concat();
+//     priv_key.sign(msg.as_slice())
+// }
+
 fn sign_receipt(receipt: [u8; 128], priv_key: SigningKey) -> recoverable::Signature {
     let preamble: &[u8] = b"\x19Ethereum Signed Message:\n128";
+    println!("pramble {:?}", preamble);
     let msg: Vec<u8> = [preamble, &receipt[..]].concat();
-    priv_key.sign(msg.as_slice())
+    let mut digest = Keccak256::new();
+    digest.update(msg.as_slice());
+    println!("Receipt hash {:?}", hex::encode(digest.clone().finalize()));
+    // println!("Signing bytes {:?}", msg.clone().as_slice());
+    priv_key.sign_digest(digest)
+}
+
+fn sign_receipt2(receipt: [u8; 128], priv_key: SecretKey) -> (Sig, RecoveryId) {
+    let preamble: &[u8] = b"\x19Ethereum Signed Message:\n128";
+    let msg: Vec<u8> = [preamble, &receipt[..]].concat();
+    let digest: [u8; 32] = Keccak256::digest(&msg[..]).into();
+    
+    println!("Receipt hash {:?}", hex::encode(&digest[..]));
+    let message = Message::parse(&digest);
+    sign(&message, &priv_key)
 }
 
 struct PayoutTestParams<'a> {
@@ -131,6 +159,7 @@ fn test_payout(params: PayoutTestParams) {
     // bridge witness
     let action_byte = Bytes::from(Vec::from_hex("00").unwrap());
     let signature = Bytes::from(Vec::from(params.sig.as_bytes()));
+    
     let bridge_witness = Bytes::from(
         [
             action_byte,
@@ -221,14 +250,13 @@ fn test_payout(params: PayoutTestParams) {
 
 #[test]
 fn test_unlock() {
-    let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
-    let bridge_state_id = [0u8; 36];
-
-    let payout_amount = 10;
-
-    let (priv_key, pub_key) = get_val_keys();
-    let receipt_owner_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
-    let receipt_tx_hash = rand::thread_rng().gen::<[u8; 32]>();
+        
+    let payout_amount: u64 = 32 * 100000000 * 100;
+    let mut receipt_owner_lock_hash = [0u8; 32];
+    hex::decode_to_slice("0efdcdec4f8490c951e4a225db3bce7274278b5d05be24d7f692454488412ad7", &mut receipt_owner_lock_hash as &mut [u8]);
+    let mut receipt_tx_hash = [0u8; 32];
+    hex::decode_to_slice("0000000000000000000000000000000000000000000000000000000000000000", &mut receipt_tx_hash as &mut [u8]);
+    
     let receipt = gen_receipt(payout_amount, receipt_owner_lock_hash, receipt_tx_hash);
     let sig: recoverable::Signature = sign_receipt(receipt, priv_key);
 
@@ -348,14 +376,12 @@ fn test_invalid_withdrawal_capacity() {
     let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
     let bridge_state_id = [0u8; 36];
 
-    let payout_amount = 10;
+    println!("{:?}", hex::encode(&receipt[..]));
 
-    let (priv_key, pub_key) = get_val_keys();
-    let receipt_owner_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
-    let receipt_tx_hash = rand::thread_rng().gen::<[u8; 32]>();
-    let receipt = gen_receipt(payout_amount, receipt_owner_lock_hash, receipt_tx_hash);
-    let sig: recoverable::Signature = sign_receipt(receipt, priv_key);
-
+    let mut priv_bytes = [0u8; 32];
+    hex::decode_to_slice("278a5de700e29faae8e40e366ec5012b5ec63d36ec77e8a2417154cc1d25383f", &mut priv_bytes as &mut [u8]);
+    let signing_key = SigningKey::new(&priv_bytes[..]).unwrap();
+    let verify_key = signing_key.verify_key();
     let validator_address =
         &Keccak256::digest(&pub_key.to_encoded_point(false).as_bytes()[1..65])[12..];
     let validator_list = vec![validator_address];
@@ -576,3 +602,4 @@ fn test_receipt_already_used() {
 
     test_payout(params);
 }
+ 
