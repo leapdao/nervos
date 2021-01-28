@@ -20,28 +20,28 @@ const myConfig: BridgeConfig = {
   },
   BRIDGE_DEP: {
     out_point: {
-      tx_hash: "0x65d29b00078aa7ce884c405f65ee9c6c9694925bc0c1df64b447078888b1922d",
+      tx_hash: "0xd1c4b1e44b4d69d2423cc4fad8f23bb043d8abf9499b1f011fc6463b171a4ad9",
       index: "0x0",
     },
     dep_type: "code",
   },
   DEPOSIT_DEP: {
     out_point: {
-      tx_hash: "0xb9cb4d5c92e7ee1b59e4163c539819073ef47dc752ab774817b53a64f6ec126c",
+      tx_hash: "0x67a4c3a504f73cfc317b0099b3360b209239a91effe9a5ba5c7b933d5ce8087a",
       index: "0x0",
     },
     dep_type: "code",
   },
   AUDIT_DELAY_DEP: {
     out_point: {
-      tx_hash: "0xa418913303f3c5b2b4b318b72026af42242578745fa7ec57e1929c99ae5b2884",
+      tx_hash: "0xfe32592dd738eb53a92ba1baaa8b4f904bc7cb22e22dce7486ee73601fd48499",
       index: "0x0",
     },
     dep_type: "code",
   },
   ANYONE_CAN_PAY_DEP: {
     out_point: {
-      tx_hash: "0x3c9264cc331292e664615ea545dd5848ada69a1a82cbf01ef07827f9542cf79e",
+      tx_hash: "0xfdfff8120aefc180dcea4ce0fa9a0912578a1bb043384b980c80913596a39672",
       index: "0x0",
     },
     dep_type: "code",

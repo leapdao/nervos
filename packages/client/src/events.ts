@@ -22,9 +22,15 @@ type BridgeDeployed = {
   initialCapacity: BigInt,
 }
 
+type Payout = {
+  kind: "payout",
+  amount: bigint,
+  receiver: string,
+}
+
 type BridgeEvent = {
   txHash: string,
-  event: NewDeposit | DepositsCollected | BridgeDeployed,
+  event: NewDeposit | DepositsCollected | BridgeDeployed | Payout,
 }
 
 type Subscriber = (event: BridgeEvent) => void;
@@ -219,6 +225,11 @@ class BridgeEventEmitter {
       return argsTypeHash == bridgeTypeHash;
     };
     const depositInOutputs = tx.transaction.outputs.find(cellIsADepositToOurBridge);
+
+    const cellIsAPayout = (c: any) => {
+      return c.lock.code_hash == this.config.AUDIT_DELAY_CODE_HASH;
+    };
+    const auditDelayInOutputs = tx.transaction.outputs.find(cellIsAPayout);
     // this means a deposit to our bridge
     if (depositInOutputs) {
       const depositAmount = BigInt(depositInOutputs.capacity);
@@ -229,6 +240,18 @@ class BridgeEventEmitter {
           kind: "new_deposit",
           amount: depositAmount,
           depositor: depositor,
+        },
+      };
+
+    } else if (auditDelayInOutputs && bridgeInOutputs) {
+      const receiver = auditDelayInOutputs.lock.args.slice(66, 130);
+      const amount = BigInt(auditDelayInOutputs.capacity);
+      return {
+        txHash: tx.transaction.hash as string,
+        event: {
+          kind: "payout",
+          amount: amount,
+          receiver: receiver,
         },
       };
       // else it is collect deposits (for now)
