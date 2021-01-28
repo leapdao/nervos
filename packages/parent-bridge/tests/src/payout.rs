@@ -6,19 +6,14 @@ use hex::FromHex;
 use k256::{
     ecdsa::{
         recoverable,
-        signature::{Signature, Signer, DigestSigner},
+        signature::{Signature, Signer},
         SigningKey, VerifyingKey,
     },
-    Secp256k1,
     elliptic_curve::sec1::ToEncodedPoint,
-    elliptic_curve::FieldBytes,
 };
 use rand::Rng;
 use rand_core::OsRng;
-use sha3::{Digest, Keccak256, Keccak256Full}; // requires 'getrandom' feature
-use tiny_keccak::Keccak;
-use tiny_keccak::Hasher;
-use secp256k1::{Message, SecretKey, PublicKey, sign, Signature as Sig, RecoveryId};
+use sha3::{Digest, Keccak256}; // requires 'getrandom' feature
 
 const MAX_CYCLES: u64 = 100_000_000;
 
@@ -136,7 +131,6 @@ fn test_payout(params: PayoutTestParams) {
     // bridge witness
     let action_byte = Bytes::from(Vec::from_hex("00").unwrap());
     let signature = Bytes::from(Vec::from(params.sig.as_bytes()));
-    
     let bridge_witness = Bytes::from(
         [
             action_byte,
@@ -225,17 +219,16 @@ fn test_payout(params: PayoutTestParams) {
     }
 }
 
-
-
 #[test]
 fn test_unlock() {
-        
-    let payout_amount: u64 = 32 * 100000000 * 100;
-    let mut receipt_owner_lock_hash = [0u8; 32];
-    hex::decode_to_slice("0efdcdec4f8490c951e4a225db3bce7274278b5d05be24d7f692454488412ad7", &mut receipt_owner_lock_hash as &mut [u8]);
-    let mut receipt_tx_hash = [0u8; 32];
-    hex::decode_to_slice("0000000000000000000000000000000000000000000000000000000000000000", &mut receipt_tx_hash as &mut [u8]);
-    
+    let trustee_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let bridge_state_id = [0u8; 36];
+
+    let payout_amount = 10;
+
+    let (priv_key, pub_key) = get_val_keys();
+    let receipt_owner_lock_hash = rand::thread_rng().gen::<[u8; 32]>();
+    let receipt_tx_hash = rand::thread_rng().gen::<[u8; 32]>();
     let receipt = gen_receipt(payout_amount, receipt_owner_lock_hash, receipt_tx_hash);
     let sig: recoverable::Signature = sign_receipt(receipt, priv_key);
 
@@ -583,4 +576,3 @@ fn test_receipt_already_used() {
 
     test_payout(params);
 }
- 
