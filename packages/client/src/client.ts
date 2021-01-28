@@ -31,6 +31,7 @@ interface BridgeState {
   validators: Array<string>,
   capacity: bigint,
   trustee: string,
+  data: string,
 }
 
 interface Receipt {
@@ -233,13 +234,13 @@ class BridgeClient {
 
     const bridgeCell = await this.getLatestBridge();
     const bridgeState = await this.getLatestBridgeState();
-    const [feeCells, feeAmount] = await this.collectEnoughCells(funderLockArgs, fee + CKB_32);
+    const [feeCells, feeAmount] = await this.collectEnoughCells(funderLockArgs, fee);
     const inputs = [bridgeCell, ...feeCells];
     const outputBridgeCell = {
       data: bridgeCell.data + ethers.utils.keccak256(receipt.raw).replace("0x", ""),
       cell_output: {
         ...bridgeCell.cell_output,
-        capacity: "0x" + (BigInt(bridgeCell.cell_output.capacity) - receipt.amount + CKB_32).toString(16),
+        capacity: "0x" + (BigInt(bridgeCell.cell_output.capacity) - receipt.amount).toString(16),
       },
     };
     const auditDelayArgs = "0x" + bridgeState.trustee
@@ -265,14 +266,13 @@ class BridgeClient {
           payoutCell,
           {
             cell_output: {
-              capacity: "0x" + (feeAmount - fee - CKB_32).toString(16),
+              capacity: "0x" + (feeAmount - fee).toString(16),
               lock: feeCells[0].cell_output.lock,
             },
             data: "0x",
           }
         ];
-    console.log(inputs);
-    console.log(outputs);
+
     const deps = [this.CONFIG.AUDIT_DELAY_DEP, this.CONFIG.SIGHASH_DEP, this.CONFIG.BRIDGE_DEP, this.CONFIG.ANYONE_CAN_PAY_DEP];
     const bridgeWitness = ethers.utils.hexlify(ethers.utils.concat(["0x00", receipt.raw, receipt.sigs]));
     const witnesses = [bridgeWitness, ...Array(feeCells.length).fill(WITNESS_TEMPLATE)];
@@ -349,6 +349,7 @@ class BridgeClient {
       validators: validators,
       capacity: BigInt(latestCell.cell_output.capacity),
       trustee: trustee,
+      data: latestCell.data,
     };
   }
 
