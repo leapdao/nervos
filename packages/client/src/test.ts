@@ -1,5 +1,5 @@
 
-import { BridgeClient, BridgeConfig } from "./client";
+import { BridgeClient, BridgeConfig, Receipt } from "./client";
 import { Script } from "@ckb-lumos/base";
 import { BridgeEventEmitter, BridgeEvent } from "./events";
 import { Indexer } from "@ckb-lumos/indexer";
@@ -7,6 +7,8 @@ import { RPC } from "ckb-js-toolkit";
 import readline from "readline";
 import { TransactionSkeletonType } from "@ckb-lumos/helpers";
 import { signWithPriv } from "./sign";
+import { ethers } from 'ethers';
+import { hashMessage } from "@ethersproject/hash";
 
 const myConfig: BridgeConfig = {
   SIGHASH_DEP: {
@@ -18,28 +20,28 @@ const myConfig: BridgeConfig = {
   },
   BRIDGE_DEP: {
     out_point: {
-      tx_hash: "0x65d29b00078aa7ce884c405f65ee9c6c9694925bc0c1df64b447078888b1922d",
+      tx_hash: "0xd1c4b1e44b4d69d2423cc4fad8f23bb043d8abf9499b1f011fc6463b171a4ad9",
       index: "0x0",
     },
     dep_type: "code",
   },
   DEPOSIT_DEP: {
     out_point: {
-      tx_hash: "0xb9cb4d5c92e7ee1b59e4163c539819073ef47dc752ab774817b53a64f6ec126c",
+      tx_hash: "0x67a4c3a504f73cfc317b0099b3360b209239a91effe9a5ba5c7b933d5ce8087a",
       index: "0x0",
     },
     dep_type: "code",
   },
   AUDIT_DELAY_DEP: {
     out_point: {
-      tx_hash: "0xa418913303f3c5b2b4b318b72026af42242578745fa7ec57e1929c99ae5b2884",
+      tx_hash: "0xfe32592dd738eb53a92ba1baaa8b4f904bc7cb22e22dce7486ee73601fd48499",
       index: "0x0",
     },
     dep_type: "code",
   },
   ANYONE_CAN_PAY_DEP: {
     out_point: {
-      tx_hash: "0x3c9264cc331292e664615ea545dd5848ada69a1a82cbf01ef07827f9542cf79e",
+      tx_hash: "0xfdfff8120aefc180dcea4ce0fa9a0912578a1bb043384b980c80913596a39672",
       index: "0x0",
     },
     dep_type: "code",
@@ -61,6 +63,7 @@ const myConfig: BridgeConfig = {
   AUDIT_DELAY_CODE_HASH: "0x0623a96cb7b6ca9dea9ff7ba15fe1fb172852ca11ed8d70124787056aac4d660",
   RPC: "http://127.0.0.1:8114",
   INDEXER_DATA_PATH: "./indexed-data",
+  TIMEOUT: 100n,
 }
 
 const rpc = new RPC(myConfig.RPC);
@@ -92,7 +95,30 @@ const sign = async (skeleton: TransactionSkeletonType): Promise<Array<string>> =
   return sigs;
 }
 
-const validators: Array<string> = ["0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"];
+async function makeReceipt(amount: bigint, txHash: string, receiver: string): Promise<Receipt> {
+  const raw = ethers.utils.concat([
+    ethers.constants.HashZero,
+    ethers.utils.hexZeroPad("0x" + amount.toString(16), 32),
+    receiver,
+    txHash,
+  ]);
+  const sig = await validator.signMessage(raw);
+  const mapV: { [index: string]: string } = {
+    "1b": "00",
+    "1c": "01",
+  }
+  return {
+    amount: amount,
+    txHash: txHash,
+    receiver: receiver,
+    raw: ethers.utils.hexlify(raw),
+    sigs: sig.slice(0, sig.length - 2) + mapV[sig.slice(sig.length - 2)],
+  };
+}
+
+let privateKey = '0x278a5de700e29faae8e40e366ec5012b5ec63d36ec77e8a2417154cc1d25383f';
+let validator = new ethers.Wallet(privateKey);
+const validators: Array<string> = [validator.address];
 const trustee = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
 const sleep = (t: number) => new Promise((resolve) => setTimeout(resolve, t));
 
@@ -100,14 +126,21 @@ async function main() {
   await client.deploy(10000n, 1000000000000n, validators, trustee, signWithPriv);
   console.log(client.BRIDGE_SCRIPT);
   console.log(await client.getLatestBridgeState());
-  await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, signWithPriv);
-  await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 2000000000000n, 10000n, signWithPriv);
+  // await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 1000000000000n, 10000n, signWithPriv);
+  // await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 2000000000000n, 10000n, signWithPriv);
   await client.deposit(myConfig.ACCOUNT_LOCK_ARGS, 3000000000000n, 10000n, signWithPriv);
   const depositsBefore = await client.getDeposits();
   console.log(depositsBefore);
   await client.collectDeposits(depositsBefore, 10000n, myConfig.ACCOUNT_LOCK_ARGS, signWithPriv);
   const depositsAfter = await client.getDeposits();
   console.log(depositsAfter);
+  console.log(await client.getLatestBridgeState());
+  const CK_BYTE = 100000000n;
+  const CKB_32 = 32n * CK_BYTE;
+  const receiver = "0x0efdcdec4f8490c951e4a225db3bce7274278b5d05be24d7f692454488412ad7";
+  const receipt = await makeReceipt(100n * CKB_32, ethers.constants.HashZero, receiver);
+  await client.payout(receipt, 10000n, myConfig.ACCOUNT_LOCK_ARGS, signWithPriv);
+
   console.log(await client.getLatestBridgeState());
 }
 

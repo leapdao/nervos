@@ -2,14 +2,14 @@ use super::*;
 use ckb_testtool::context::Context;
 use ckb_tool::ckb_types::{bytes::Bytes, core::TransactionBuilder, packed::*, prelude::*};
 use ckb_tool::{ckb_error::assert_error_eq, ckb_script::{TransactionScriptError, ScriptError}};
-use elliptic_curve::sec1::ToEncodedPoint;
 use hex::FromHex;
 use k256::{
     ecdsa::{
         recoverable,
         signature::{Signature, Signer},
-        SigningKey, VerifyKey,
+        SigningKey, VerifyingKey,
     },
+    elliptic_curve::sec1::ToEncodedPoint,
 };
 use rand::Rng;
 use rand_core::OsRng;
@@ -17,7 +17,7 @@ use sha3::{Digest, Keccak256}; // requires 'getrandom' feature
 
 const MAX_CYCLES: u64 = 100_000_000;
 
-fn get_val_keys() -> (SigningKey, VerifyKey) {
+fn get_val_keys() -> (SigningKey, VerifyingKey) {
     let signing_key = SigningKey::random(&mut OsRng); // Serialize with `::to_bytes()`
     let verify_key = signing_key.verify_key();
     (signing_key, verify_key)

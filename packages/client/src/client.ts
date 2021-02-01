@@ -1,6 +1,7 @@
 import { Cell, CellDep, Script, HashType, HexString, utils } from "@ckb-lumos/base";
 import { Indexer, CellCollector } from "@ckb-lumos/indexer";
 import { RPC } from "ckb-js-toolkit";
+import { ethers } from 'ethers';
 import { TransactionSkeletonType, TransactionSkeleton, sealTransaction, createTransactionFromSkeleton } from "@ckb-lumos/helpers";
 import { List } from "immutable";
 import { secp256k1Blake160 } from "@ckb-lumos/common-scripts";
@@ -22,6 +23,7 @@ interface BridgeConfig {
   ACCOUNT_LOCK_ARGS: string,
   RPC: string,
   INDEXER_DATA_PATH: string,
+  TIMEOUT: bigint,
 }
 
 interface BridgeState {
@@ -29,6 +31,15 @@ interface BridgeState {
   validators: Array<string>,
   capacity: bigint,
   trustee: string,
+  data: string,
+}
+
+interface Receipt {
+  amount: bigint,
+  raw: string,
+  receiver: string,
+  sigs: string,
+  txHash: string,
 }
 
 const WITNESS_TEMPLATE = "0x55000000100000005500000055000000410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -217,9 +228,64 @@ class BridgeClient {
     return txHash;
   }
 
-  async payout(): Promise<string> {
+  async payout(receipt: Receipt, fee: bigint, funderLockArgs: string, sign: (skeleton: TransactionSkeletonType) => Promise<Array<string>>): Promise<string> {
+    const CK_BYTE = 100000000n;
+    const CKB_32 = 32n * CK_BYTE;
 
-    return "";
+    const bridgeCell = await this.getLatestBridge();
+    const bridgeState = await this.getLatestBridgeState();
+    const [feeCells, feeAmount] = await this.collectEnoughCells(funderLockArgs, fee);
+    const inputs = [bridgeCell, ...feeCells];
+    const outputBridgeCell = {
+      data: bridgeCell.data + ethers.utils.keccak256(receipt.raw).replace("0x", ""),
+      cell_output: {
+        ...bridgeCell.cell_output,
+        capacity: "0x" + (BigInt(bridgeCell.cell_output.capacity) - receipt.amount).toString(16),
+      },
+    };
+    const auditDelayArgs = "0x" + bridgeState.trustee
+      + receipt.receiver.replace("0x", "")
+      + ethers.utils.hexZeroPad("0x" + this.CONFIG.TIMEOUT.toString(16), 8).replace("0x", "");
+    const payoutCell: Cell = {
+      data: "0x",
+      cell_output: {
+        capacity: "0x" + receipt.amount.toString(16),
+        lock: {
+          code_hash: this.CONFIG.AUDIT_DELAY_CODE_HASH,
+          hash_type: "data",
+          args: auditDelayArgs,
+        },
+      },
+    };
+
+    const outputs =
+      feeAmount == fee ?
+        [outputBridgeCell, payoutCell] :
+        [
+          outputBridgeCell,
+          payoutCell,
+          {
+            cell_output: {
+              capacity: "0x" + (feeAmount - fee).toString(16),
+              lock: feeCells[0].cell_output.lock,
+            },
+            data: "0x",
+          }
+        ];
+
+    const deps = [this.CONFIG.AUDIT_DELAY_DEP, this.CONFIG.SIGHASH_DEP, this.CONFIG.BRIDGE_DEP, this.CONFIG.ANYONE_CAN_PAY_DEP];
+    const bridgeWitness = ethers.utils.hexlify(ethers.utils.concat(["0x00", receipt.raw, receipt.sigs]));
+    const witnesses = [bridgeWitness, ...Array(feeCells.length).fill(WITNESS_TEMPLATE)];
+
+    let skeleton = this.makeSkeleton(inputs, outputs, deps, witnesses);
+    skeleton = secp256k1Blake160.prepareSigningEntries(skeleton);
+    const sigs = await sign(skeleton);
+    const tx = sealTransaction(skeleton, sigs);
+
+    const txHash = await this.rpc.send_transaction(tx);
+    const subscriber = await this.awaitTransaction(txHash);
+    this.eventEmitter.unsubscribe(subscriber);
+    return txHash;
   }
 
   async getDeposits(): Promise<Array<Cell>> {
@@ -283,6 +349,7 @@ class BridgeClient {
       validators: validators,
       capacity: BigInt(latestCell.cell_output.capacity),
       trustee: trustee,
+      data: latestCell.data,
     };
   }
 
@@ -330,4 +397,4 @@ class BridgeClient {
   }
 }
 
-export { BridgeClient, BridgeConfig };
+export { BridgeClient, BridgeConfig, Receipt };
